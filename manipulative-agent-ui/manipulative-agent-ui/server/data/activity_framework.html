@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{APP_TITLE}}</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+  .page { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; overflow: auto; }
+  .page.active { display: block; }
+</style>
+</head>
+<body>
+<div id="home-page" class="page active"></div>
+<div id="activity-1" class="page"></div>
+<div id="activity-2" class="page"></div>
+<div id="activity-3" class="page"></div>
+
+<script>
+window.ActivityManager = {
+  currentPage: 'home',
+  show: function(id) {
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    var pageId, dataKey;
+    if (id === 0 || id === 'home') {
+      pageId = 'home-page';
+      dataKey = 'HOME_PAGE';
+    } else {
+      pageId = 'activity-' + id;
+      dataKey = 'ACTIVITY_' + id;
+    }
+    var container = document.getElementById(pageId);
+    if (!container) return;
+    container.classList.add('active');
+    this.currentPage = id;
+    var data = window[dataKey];
+    if (data && !container.dataset.rendered) {
+      container.innerHTML = data.template;
+      container.dataset.rendered = '1';
+      if (typeof data.init === 'function') data.init();
+    }
+  }
+};
+</script>
+
+<script>/* __HOME_PAGE_CODE__ */</script>
+<script>/* __ACTIVITY_1_CODE__ */</script>
+<script>/* __ACTIVITY_2_CODE__ */</script>
+<script>/* __ACTIVITY_3_CODE__ */</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  ActivityManager.show('home');
+});
+if (document.readyState !== 'loading') {
+  ActivityManager.show('home');
+}
+</script>
+</body>
+</html>
