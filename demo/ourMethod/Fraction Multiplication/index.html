@@ -1,0 +1,2336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fraction Multiplication Lab: Area Model</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f0f4f8;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+
+    #app-container {
+      width: 1920px;
+      height: 1080px;
+      background: #fff;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform-origin: top left;
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .page.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+  /* Shared component styles */
+    .activity-header {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      z-index: 10;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 2px solid white;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 18px;
+    }
+
+    .back-btn:hover {
+      background: white;
+      color: #667eea;
+    }
+
+    .progress {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .activity-content {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: auto;
+    }
+
+    .activity-footer {
+      height: 80px;
+      min-height: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .next-btn {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      border: none;
+      color: white;
+      padding: 15px 50px;
+      border-radius: 30px;
+      font-size: 22px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .next-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .next-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+  /* Feedback animations */
+    @keyframes correct-pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    @keyframes wrong-shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-10px);
+      }
+
+      75% {
+        transform: translateX(10px);
+      }
+    }
+
+    .feedback-correct {
+      animation: correct-pulse 0.5s;
+    }
+
+    .feedback-wrong {
+      animation: wrong-shake 0.5s;
+    }
+  </style>
+  <!-- Three.js for 3D Geometry Activities -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+  <div id="app-container">
+    <div id="home-page" class="page active"></div>
+    <div id="activity-1" class="page"></div>
+    <div id="activity-2" class="page"></div>
+    <div id="activity-3" class="page"></div>
+  </div>
+  <script>
+  // ========== TeachingGameEngine (drag-and-drop engine) ==========
+    class TeachingGameEngine {
+      constructor() {
+        this.draggables = [];
+        this.dropZones = [];
+        this.events = {};
+        this.isMobile = 'ontouchstart' in window;
+        this._initStyle();
+      }
+      makeDraggable(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { revert: true, targetGroup: 'default', ...options };
+        const offsetParent = element.offsetParent || document.body;
+        const parentRect = offsetParent.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(element);
+        if (computedStyle.position === 'static') {
+          element.style.position = 'absolute';
+          element.style.left = (rect.left - parentRect.left) + 'px';
+          element.style.top = (rect.top - parentRect.top) + 'px';
+        }
+        config.initialX = parseFloat(element.style.left) || 0;
+        config.initialY = parseFloat(element.style.top) || 0;
+        config.zIndex = computedStyle.zIndex;
+        this._bindDragEvents(element, config);
+        element.style.cursor = 'grab';
+        element.classList.add('tge-draggable');
+      }
+      makeDropZone(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { group: 'default', accept: null, ...options };
+        element.classList.add('tge-dropzone');
+        this.dropZones.push({ element, config });
+      }
+      playSound(type) { console.log(`[Audio] Playing ${type} sound`); }
+      showFeedback(el, type = 'pulse') {
+        const element = this._getElement(el);
+        if (!element) return;
+        element.classList.remove('tge-anim-shake', 'tge-anim-pulse');
+        void element.offsetWidth;
+        element.classList.add(`tge-anim-${type}`);
+        setTimeout(() => element.classList.remove(`tge-anim-${type}`), 800);
+      }
+      on(eventName, callback) {
+        if (!this.events[eventName]) this.events[eventName] = [];
+        this.events[eventName].push(callback);
+      }
+      _getElement(el) { return typeof el === 'string' ? document.getElementById(el) : el; }
+      _bindDragEvents(element, config) {
+        let isDragging = false, startX, startY, initialLeft, initialTop;
+        const self = this;
+        const startHandler = (e) => {
+          e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          isDragging = true; startX = point.clientX; startY = point.clientY;
+          initialLeft = parseFloat(element.style.left) || 0;
+          initialTop = parseFloat(element.style.top) || 0;
+          element.style.zIndex = 1000; element.style.cursor = 'grabbing';
+          element.classList.add('tge-dragging');
+          self._emit('dragStart', { element });
+        };
+        const moveHandler = (e) => {
+          if (!isDragging) return; e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          element.style.left = `${initialLeft + point.clientX - startX}px`;
+          element.style.top = `${initialTop + point.clientY - startY}px`;
+          self._checkDropZones(element, config);
+        };
+        const endHandler = (e) => {
+          if (!isDragging) return; isDragging = false;
+          element.style.zIndex = config.zIndex; element.style.cursor = 'grab';
+          element.classList.remove('tge-dragging');
+          const dropZone = self._checkDropZones(element, config);
+          if (dropZone) { self._emit('drop', { source: element, target: dropZone.element }); self._snapTo(element, dropZone.element); }
+          else { if (config.revert) self._revert(element, config); self._emit('dragEnd', { element, success: false }); }
+          self.dropZones.forEach(z => z.element.classList.remove('tge-drag-over'));
+        };
+        if (this.isMobile) { element.addEventListener('touchstart', startHandler, { passive: false }); window.addEventListener('touchmove', moveHandler, { passive: false }); window.addEventListener('touchend', endHandler); }
+        else { element.addEventListener('mousedown', startHandler); window.addEventListener('mousemove', moveHandler); window.addEventListener('mouseup', endHandler); }
+      }
+      _checkDropZones(dragEl, dragConfig) {
+        let bestZone = null, maxArea = 0; const dragRect = dragEl.getBoundingClientRect();
+        this.dropZones.forEach(zone => {
+          if (zone.config.group !== dragConfig.targetGroup) return;
+          const zoneRect = zone.element.getBoundingClientRect();
+          const overlap = !(dragRect.right < zoneRect.left || dragRect.left > zoneRect.right || dragRect.bottom < zoneRect.top || dragRect.top > zoneRect.bottom);
+          if (overlap) { const x_overlap = Math.max(0, Math.min(dragRect.right, zoneRect.right) - Math.max(dragRect.left, zoneRect.left)); const y_overlap = Math.max(0, Math.min(dragRect.bottom, zoneRect.bottom) - Math.max(dragRect.top, zoneRect.top)); const area = x_overlap * y_overlap; if (area > maxArea) { maxArea = area; bestZone = zone; } }
+        });
+        this.dropZones.forEach(z => z === bestZone ? z.element.classList.add('tge-drag-over') : z.element.classList.remove('tge-drag-over'));
+        return bestZone;
+      }
+      _snapTo(dragEl, targetEl) { const offsetParent = dragEl.offsetParent || document.body; const parentRect = offsetParent.getBoundingClientRect(); const targetRect = targetEl.getBoundingClientRect(); const dragRect = dragEl.getBoundingClientRect(); const centerX = targetRect.left + targetRect.width / 2 - dragRect.width / 2 - parentRect.left; const centerY = targetRect.top + targetRect.height / 2 - dragRect.height / 2 - parentRect.top; dragEl.style.transition = 'all 0.3s ease-out'; dragEl.style.left = centerX + 'px'; dragEl.style.top = centerY + 'px'; setTimeout(() => dragEl.style.transition = '', 300); }
+      _revert(element, config) { element.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; element.style.left = config.initialX + 'px'; element.style.top = config.initialY + 'px'; setTimeout(() => element.style.transition = '', 300); }
+      _emit(name, data) { if (this.events[name]) this.events[name].forEach(cb => cb(data)); }
+      _initStyle() { if (document.getElementById('tge-style')) return; const css = `.tge-draggable { touch-action: none; user-select: none; } .tge-drag-over { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); transform: scale(1.02); transition: transform 0.2s; } .tge-anim-shake { animation: tge-shake 0.5s; } .tge-anim-pulse { animation: tge-pulse 0.5s; } @keyframes tge-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } } @keyframes tge-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }`; const style = document.createElement('style'); style.id = 'tge-style'; style.textContent = css; document.head.appendChild(style); }
+      static Draggable = class {
+        constructor(element, options = {}) { this.element = typeof element === 'string' ? document.getElementById(element) : element; this.options = { container: document.body, ...options }; this.isDragging = false; this.isMobile = 'ontouchstart' in window; this._bind(); }
+        _bind() {
+          const el = this.element; let startX, startY, elX, elY;
+          const start = (e) => { e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; this.isDragging = true; startX = pt.clientX; startY = pt.clientY; elX = parseFloat(el.style.left) || 0; elY = parseFloat(el.style.top) || 0; if (this.options.onDragStart) this.options.onDragStart(e); };
+          const move = (e) => { if (!this.isDragging) return; e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; el.style.left = (elX + pt.clientX - startX) + 'px'; el.style.top = (elY + pt.clientY - startY) + 'px'; };
+          const end = (e) => { if (!this.isDragging) return; this.isDragging = false; if (this.options.onDragEnd) this.options.onDragEnd(e); };
+          if (this.isMobile) { el.addEventListener('touchstart', start, { passive: false }); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end); }
+          else { el.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end); }
+        }
+        destroy() { }
+      };
+    }
+    window.TeachingGameEngine = TeachingGameEngine;
+    window.gameEngine = new TeachingGameEngine();
+
+  // Responsive scaling
+    function resizeApp() {
+      const c = document.getElementById('app-container');
+      const scaleX = window.innerWidth / 1920;
+      const scaleY = window.innerHeight / 1080;
+      const scale = Math.min(scaleX, scaleY);
+  // Compute scaled dimensions
+      const scaledWidth = 1920 * scale;
+      const scaledHeight = 1080 * scale;
+  // Compute centering offsets
+      const offsetX = (window.innerWidth - scaledWidth) / 2;
+      const offsetY = (window.innerHeight - scaledHeight) / 2;
+  // Apply transform: translate to center first, then scale
+      c.style.left = offsetX + 'px';
+      c.style.top = offsetY + 'px';
+      c.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', resizeApp);
+    resizeApp();
+
+  // Activity manager
+    const ActivityManager = {
+      current: null,
+  // Components to wait for (filled by component registration)
+      _requiredComponents: [],
+
+      async show(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        if (this.current && window[`ACTIVITY_${this.current}`]?.destroy) {
+          window[`ACTIVITY_${this.current}`].destroy();
+        }
+        if (id === 0) {
+          document.getElementById('home-page').classList.add('active');
+          if (window.HOME_PAGE) HOME_PAGE.init();
+          this.current = null;
+        } else {
+          document.getElementById(`activity-${id}`).classList.add('active');
+          const activity = window[`ACTIVITY_${id}`];
+          if (activity) {
+            // Wait for all components to finish registering
+            await this._waitForComponents();
+            activity.init();
+          }
+          this.current = id;
+        }
+      },
+
+  // Wait for all registered components to be ready
+      async _waitForComponents() {
+        if (this._requiredComponents.length === 0) return;
+        const promises = this._requiredComponents.map(name =>
+          customElements.whenDefined(name).catch(() => { })
+        );
+        await Promise.all(promises);
+      },
+
+  // Register a component to wait for (called by component scripts)
+      registerComponent(tagName) {
+        if (!this._requiredComponents.includes(tagName)) {
+          this._requiredComponents.push(tagName);
+        }
+      },
+
+      goHome() { this.show(0); }
+    };
+  window.ActivityManager = ActivityManager;  // Expose on window for LLM-generated code to use
+
+  // Utility helpers
+    function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function playSound(type) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        if (type === 'correct') {
+          osc.frequency.setValueAtTime(523, ctx.currentTime);
+          osc.frequency.setValueAtTime(784, ctx.currentTime + 0.15);
+        } else {
+          osc.frequency.setValueAtTime(200, ctx.currentTime);
+        }
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch (e) { }
+    }
+
+    /**
+  * Create an activity header (includes a Back/Home button)
+  * @param {string} title - Activity title
+  * @param {string} progressText - Progress text (optional), e.g. "1/5"
+  * @returns {string} HTML string
+     */
+    function createActivityHeader(title, progressText = '') {
+      return `
+        <div class="activity-header">
+          <button class="back-btn" onclick="ActivityManager.goHome()">🏠 Home</button>
+          <h2 style="font-size: 28px; margin: 0;">${title}</h2>
+          <div class="progress">${progressText}</div>
+        </div>
+      `;
+    }
+    window.createActivityHeader = createActivityHeader;
+
+  // ========== 3D geometry helper (built-in) ==========
+    // For 3D geometry activities. Supports: cuboid, cube, sphere, cylinder, cone, frustum, prism, pyramid
+    const Geometry3DHelper = {
+      // Supported types and default parameters
+      TYPES: {
+        cuboid: { l: 4, w: 6, h: 3 },
+        cube: { size: 4 },
+        sphere: { radius: 3 },
+        cylinder: { radiusTop: 2, radiusBottom: 2, height: 5 },
+        cone: { radius: 2, height: 5 },
+        frustum: { radiusTop: 1, radiusBottom: 2.5, height: 4 },
+        prism: { sides: 6, radius: 2, height: 4 },
+        pyramid: { sides: 4, radius: 2, height: 5 }
+      },
+
+      /**
+  * Create a 3D solid renderer
+  * @param {HTMLElement} container - Container element
+  * @param {string} type - Type: cuboid/cube/sphere/cylinder/cone/frustum/prism/pyramid
+  * @param {object} params - Parameter object
+  * @param {object} options - Optional config { autoRotate, showEdges }
+  * @returns {object} Controller { updateParams, setType, dispose }
+       */
+      create(container, type = 'cuboid', params = null, options = {}) {
+        const self = {
+          scene: null, camera: null, renderer: null,
+          mesh: null, edges: null, edgeLines: null, geometry: null,
+          currentType: type,
+          currentParams: params || { ...this.TYPES[type] },
+          options: { autoRotate: true, showEdges: true, ...options },
+          boxMaterials: null
+        };
+
+  // Initialize scene
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 400;
+
+        self.scene = new THREE.Scene();
+        self.scene.background = new THREE.Color(0xe8f4f8);
+
+        self.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+        self.camera.position.set(12, 9, 15);
+        self.camera.lookAt(0, 0, 0);
+
+        self.renderer = new THREE.WebGLRenderer({ antialias: true });
+        self.renderer.setSize(width, height);
+        self.renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(self.renderer.domElement);
+
+  // Lighting
+        self.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        self.scene.add(dirLight);
+
+  // Materials
+        self.boxMaterials = [
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db })
+        ];
+
+  // Create geometry
+        const createGeometry = () => {
+          if (self.mesh) { self.scene.remove(self.mesh); self.geometry.dispose(); }
+          if (self.edgeLines) { self.scene.remove(self.edgeLines); self.edges.dispose(); }
+
+          const p = self.currentParams;
+          switch (self.currentType) {
+            case 'cube': self.geometry = new THREE.BoxGeometry(p.size, p.size, p.size); break;
+            case 'cuboid': self.geometry = new THREE.BoxGeometry(p.w, p.h, p.l); break;
+            case 'sphere': self.geometry = new THREE.SphereGeometry(p.radius, 32, 24); break;
+            case 'cylinder': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'cone': self.geometry = new THREE.ConeGeometry(p.radius, p.height, 32); break;
+            case 'frustum': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'prism': self.geometry = new THREE.CylinderGeometry(p.radius, p.radius, p.height, p.sides); break;
+            case 'pyramid': self.geometry = new THREE.ConeGeometry(p.radius, p.height, p.sides); self.geometry.rotateY(Math.PI / p.sides); break;
+            default: self.geometry = new THREE.BoxGeometry(3, 3, 3);
+          }
+
+          const mat = (self.currentType === 'cuboid' || self.currentType === 'cube') ? self.boxMaterials : new THREE.MeshLambertMaterial({ color: 0x3498db });
+          self.mesh = new THREE.Mesh(self.geometry, mat);
+          self.scene.add(self.mesh);
+
+          if (self.options.showEdges) {
+            self.edges = new THREE.EdgesGeometry(self.geometry, 15);
+            self.edgeLines = new THREE.LineSegments(self.edges, new THREE.LineBasicMaterial({ color: 0x333333 }));
+            self.scene.add(self.edgeLines);
+          }
+        };
+        createGeometry();
+
+  // Animation loop
+        let animId;
+        const animate = () => {
+          animId = requestAnimationFrame(animate);
+          if (self.options.autoRotate && self.mesh) {
+            self.mesh.rotation.y += 0.005;
+            if (self.edgeLines) self.edgeLines.rotation.y += 0.005;
+          }
+          self.renderer.render(self.scene, self.camera);
+        };
+        animate();
+
+  // Return controller
+        return {
+          updateParams(newParams) {
+            self.currentParams = { ...self.currentParams, ...newParams };
+            createGeometry();
+          },
+          setType(newType, newParams) {
+            self.currentType = newType;
+            self.currentParams = newParams || { ...Geometry3DHelper.TYPES[newType] };
+            createGeometry();
+          },
+          isCube() {
+            if (self.currentType === 'cube') return true;
+            if (self.currentType === 'cuboid') {
+              const { l, w, h } = self.currentParams;
+              return l === w && w === h;
+            }
+            return false;
+          },
+          dispose() {
+            cancelAnimationFrame(animId);
+            if (self.geometry) self.geometry.dispose();
+            if (self.edges) self.edges.dispose();
+            self.boxMaterials.forEach(m => m.dispose());
+            self.renderer.dispose();
+            const canvas = self.renderer.domElement;
+            if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+          }
+        };
+      }
+    };
+
+  // ========== Area for LLM-generated code ==========
+    window.HOME_PAGE = {
+      template: `
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
+
+      .home-container {
+        width: 100%;
+        height: 100%;
+        font-family: 'Poppins', sans-serif;
+        background: url('./assets/background.png') no-repeat center center;
+        background-size: cover;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Dark overlay for better text readability */
+      .home-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4); /* Slight darkening */
+        z-index: 0;
+      }
+
+      .content-wrapper {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 1600px;
+      }
+
+      .main-title {
+        font-size: 72px;
+        font-weight: 800;
+        color: #fff;
+        margin: 0;
+        text-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        letter-spacing: -1px;
+        opacity: 0;
+        animation: fadeInDown 0.8s ease-out forwards;
+      }
+
+      .sub-title {
+        font-size: 32px;
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.95);
+        margin-top: 10px;
+        margin-bottom: 60px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        opacity: 0;
+        animation: fadeInDown 0.8s ease-out 0.2s forwards;
+      }
+
+      .cards-container {
+        display: flex;
+        gap: 40px;
+        justify-content: center;
+        width: 100%;
+        perspective: 1000px;
+      }
+
+      .activity-card {
+        width: 380px;
+        height: 480px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 24px;
+        padding: 40px 30px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        opacity: 0;
+        animation: fadeInUp 0.8s ease-out forwards;
+        position: relative;
+        overflow: hidden;
+        border: 2px solid transparent;
+      }
+
+      /* Staggered animation delays */
+      .activity-card:nth-child(1) { animation-delay: 0.4s; }
+      .activity-card:nth-child(2) { animation-delay: 0.5s; }
+      .activity-card:nth-child(3) { animation-delay: 0.6s; }
+
+      .activity-card:hover {
+        transform: translateY(-15px) scale(1.02);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        background: #fff;
+        border-color: rgba(102, 126, 234, 0.5);
+      }
+
+      .card-icon {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 8px 20px rgba(118, 75, 162, 0.3);
+        transition: transform 0.4s ease;
+      }
+
+      .activity-card:nth-child(2) .card-icon {
+        background: linear-gradient(135deg, #FF9966 0%, #FF5E62 100%);
+        box-shadow: 0 8px 20px rgba(255, 94, 98, 0.3);
+      }
+
+      .activity-card:nth-child(3) .card-icon {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        box-shadow: 0 8px 20px rgba(56, 239, 125, 0.3);
+      }
+
+      .activity-card:hover .card-icon {
+        transform: scale(1.1) rotate(5deg);
+      }
+
+      .card-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: #333;
+        margin-bottom: 15px;
+      }
+
+      .card-desc {
+        font-size: 16px;
+        color: #666;
+        line-height: 1.6;
+      }
+
+      .card-btn {
+        margin-top: auto;
+        padding: 12px 30px;
+        border-radius: 50px;
+        background: #f0f2f5;
+        color: #555;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+
+      .activity-card:hover .card-btn {
+        background: #333;
+        color: #fff;
+      }
+
+      @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(40px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+
+    <div class="home-container">
+      <div class="home-overlay"></div>
+      <div class="content-wrapper">
+  <h1 class="main-title">Fraction Multiplication Lab</h1>
+  <p class="sub-title">Visualize, explore, and master fraction multiplication</p>
+        
+        <div class="cards-container">
+          
+          <!-- Card 1 -->
+          <div class="activity-card" data-id="1">
+            <div class="card-icon">📏</div>
+            <div class="card-title">Slice Lab</div>
+            <div class="card-desc">Use sliders to slice a rectangle vertically and horizontally. See how the overlap represents the product.</div>
+            <div class="card-btn">Start</div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="activity-card" data-id="2">
+            <div class="card-icon">🔍</div>
+            <div class="card-title">Grid Detective</div>
+            <div class="card-desc">Inspect the shaded region in a completed grid and identify the multiplication expression that produced it.</div>
+            <div class="card-btn">Investigate</div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="activity-card" data-id="3">
+            <div class="card-icon">🧩</div>
+            <div class="card-title">Model Match</div>
+            <div class="card-desc">Drag visual models onto the matching description or equation to classify them.</div>
+            <div class="card-btn">Match</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `,
+      init() {
+        // 1) Render page
+        document.getElementById('home-page').innerHTML = this.template;
+
+        // 2) Bind events
+        const cards = document.querySelectorAll('.activity-card');
+
+        cards.forEach(card => {
+          card.addEventListener('click', () => {
+            const activityId = parseInt(card.getAttribute('data-id'), 10);
+
+            // Call ActivityManager.show(id) directly
+            if (typeof ActivityManager !== 'undefined') {
+              ActivityManager.show(activityId);
+            } else {
+              console.error('ActivityManager is not defined');
+            }
+          });
+        });
+      }
+    };
+    window.ACTIVITY_1 = {
+      config: {
+        totalQuestions: 10,
+        questionType: "random",
+        assets: {
+          trackH: "./assets/slider_track_horizontal.png",
+          trackV: "./assets/slider_track_vertical.png",
+          thumbH: "./assets/slider_thumb_horizontal.png",
+          thumbV: "./assets/slider_thumb_vertical.png",
+          solveBtn: "./assets/button_solve.png",
+          frame: "./assets/main_canvas_frame.png"
+        }
+      },
+
+      state: {
+        currentQuestion: 0,
+        score: 0,
+        targetV: 2, // Denominator 1 (Vertical divisions)
+        targetH: 3, // Denominator 2 (Horizontal divisions)
+        currentV: 2,
+        currentH: 2,
+        isDragging: false,
+        questions: []
+      },
+
+      template: `
+    ${createActivityHeader('Slice Lab', '1/10')}
+    <div class="activity-content" id="content-1">
+      <style>
+        #activity-1 {
+          font-family: 'Comic Sans MS', 'Microsoft YaHei', sans-serif;
+          user-select: none;
+          color: #333;
+        }
+        /* Layout */
+        .lab-container {
+          position: absolute;
+          top: 100px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 1200px;
+          height: 800px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        
+        /* Equation Display */
+        .equation-panel {
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 48px;
+          background: #fff;
+          padding: 15px 40px;
+          border-radius: 20px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+        .fraction {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          vertical-align: middle;
+          font-weight: bold;
+        }
+        .fraction .num { border-bottom: 3px solid #333; padding: 0 5px; display: block; width: 100%; text-align: center; }
+        .fraction .den { padding: 0 5px; display: block; width: 100%; text-align: center; }
+        .operator { color: #666; margin: 0 10px; }
+
+        /* Main Canvas Area */
+        .canvas-wrapper {
+          position: relative;
+          width: 500px;
+          height: 500px;
+          margin: 0 auto;
+        }
+        
+        .main-canvas {
+          position: absolute;
+          width: 440px;
+          height: 440px;
+          top: 30px;
+          left: 30px;
+          background: white;
+          overflow: hidden;
+        }
+
+        /* Layers - Cross pattern design */
+        .layer-blue {
+          position: absolute;
+          left: 50%;
+          top: 0;
+          width: 100px;
+          height: 100%;
+          background-color: rgba(66, 133, 244, 0.7); /* Blue */
+          transition: transform 0.3s ease, width 0.3s ease;
+          border: 3px solid #2979FF;
+          border-radius: 8px;
+          box-sizing: border-box;
+          z-index: 2;
+          pointer-events: none;
+          transform: translateX(-50%);
+        }
+        .layer-yellow {
+          position: absolute;
+          top: 50%;
+          left: 0;
+          width: 100%;
+          height: 100px;
+          background-color: rgba(255, 193, 7, 0.7); /* Yellow/Orange */
+          transition: transform 0.3s ease, height 0.3s ease;
+          border: 3px solid #FF8F00;
+          border-radius: 8px;
+          box-sizing: border-box;
+          z-index: 3;
+          pointer-events: none;
+          transform: translateY(-50%);
+        }
+        /* Overlap indicator using pseudo-element */
+        .overlap-indicator {
+          position: absolute;
+          background-color: rgba(76, 175, 80, 0.8); /* Green */
+          border: 2px solid #2E7D32;
+          border-radius: 4px;
+          z-index: 4;
+          pointer-events: none;
+          transition: all 0.3s ease;
+        }
+
+        .grid-lines {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 4;
+          pointer-events: none;
+          /* Gradients set by JS */
+        }
+
+        .canvas-frame {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 500px;
+          height: 500px;
+          /* Remove static image, use CSS border instead */
+          border: 30px solid #f5f5f5;
+          border-radius: 12px;
+          box-sizing: border-box;
+          box-shadow: inset 0 0 20px rgba(0,0,0,0.1), 0 4px 15px rgba(0,0,0,0.1);
+          z-index: 1;
+          pointer-events: none;
+        }
+
+        /* Sliders */
+        .slider-v-area {
+          position: absolute;
+          left: -120px;
+          top: 30px;
+          height: 440px;
+          width: 80px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .slider-track-v {
+          width: 28px;
+          height: 400px;
+          background-image: url('./assets/slider_track_vertical.png');
+          background-size: 100% 100%;
+          position: relative;
+          cursor: pointer;
+        }
+        .slider-thumb-v {
+          position: absolute;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 60px;
+          height: 60px;
+          background-image: url('./assets/slider_thumb_vertical.png');
+          background-size: contain;
+          cursor: grab;
+          transition: top 0.1s;
+        }
+
+        .slider-h-area {
+          position: absolute;
+          bottom: -100px;
+          left: 30px;
+          width: 440px;
+          height: 80px;
+          display: flex;
+          justify-content: center;
+        }
+        .slider-track-h {
+          width: 400px;
+          height: 28px;
+          background-image: url('./assets/slider_track_horizontal.png');
+          background-size: 100% 100%;
+          position: relative;
+          cursor: pointer;
+          margin-top: 10px;
+        }
+        .slider-thumb-h {
+          position: absolute;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          width: 60px;
+          height: 60px;
+          background-image: url('./assets/slider_thumb_horizontal.png');
+          background-size: contain;
+          cursor: grab;
+          transition: left 0.1s;
+        }
+
+        .slider-label {
+          font-size: 20px;
+          font-weight: bold;
+          color: #2196F3;
+          margin: 10px;
+          text-shadow: 1px 1px 0px #fff;
+        }
+        .h-label { color: #FBC02D; }
+
+        /* Controls */
+        .btn-solve {
+          position: absolute;
+          bottom: -180px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 200px;
+          height: 80px;
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          border: none;
+          border-radius: 40px;
+          cursor: pointer;
+          transition: transform 0.1s;
+          font-size: 32px;
+          font-weight: bold;
+          color: white;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-solve:hover {
+          transform: translateX(-50%) scale(1.05);
+        }
+        .btn-solve:active { transform: translateX(-50%) scale(0.95); }
+
+        /* Feedback Modal */
+        .feedback-mask {
+          position: absolute;
+          top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0,0,0,0.5);
+          display: none;
+          align-items: center;
+          justify-content: center;
+          z-index: 100;
+        }
+        .feedback-box {
+          background: white;
+          padding: 30px;
+          border-radius: 20px;
+          text-align: center;
+          animation: popIn 0.3s ease-out;
+          border: 5px solid #4CAF50;
+        }
+        @keyframes popIn {
+          from { transform: scale(0.5); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        .feedback-text { font-size: 32px; margin-bottom: 20px; }
+        .next-btn-modal {
+          padding: 10px 30px;
+          font-size: 24px;
+          background: #2196F3;
+          color: white;
+          border: none;
+          border-radius: 50px;
+          cursor: pointer;
+        }
+
+      </style>
+
+      <div class="lab-container">
+        <!-- Equation -->
+        <div class="equation-panel" id="equation-display-1">
+          <!-- Injected via JS -->
+        </div>
+
+        <!-- Main Workspace -->
+        <div class="canvas-wrapper">
+          <!-- Vertical Slider (Left) -->
+          <div class="slider-v-area">
+            <div class="slider-label">Vertical slices</div>
+            <div class="slider-track-v" id="track-v-1">
+              <div class="slider-thumb-v" id="thumb-v-1"></div>
+            </div>
+            <div class="slider-label" id="val-v-1">1/2</div>
+          </div>
+
+          <!-- Canvas -->
+          <div class="main-canvas" id="canvas-1">
+            <div class="layer-blue" id="layer-blue-1"></div>
+            <div class="layer-yellow" id="layer-yellow-1"></div>
+            <div class="overlap-indicator" id="overlap-1"></div>
+            <div class="grid-lines" id="grid-lines-1"></div>
+          </div>
+          <div class="canvas-frame"></div>
+
+          <!-- Horizontal Slider (Bottom) -->
+          <div class="slider-h-area">
+            <div class="slider-label h-label">Horizontal slices</div>
+            <div class="slider-track-h" id="track-h-1">
+              <div class="slider-thumb-h" id="thumb-h-1"></div>
+            </div>
+            <div class="slider-label h-label" id="val-h-1">1/2</div>
+          </div>
+
+          <!-- Check Button -->
+          <button class="btn-solve" id="btn-check-1">Check</button>
+        </div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback-mask" id="feedback-1">
+        <div class="feedback-box">
+          <div class="feedback-text" id="feedback-msg-1"></div>
+          <button class="next-btn-modal" id="btn-next-1">Next</button>
+        </div>
+      </div>
+    </div>
+  `,
+
+      init() {
+        document.getElementById('activity-1').innerHTML = this.template;
+
+        // Bind global events
+        document.getElementById('btn-check-1').onclick = () => this.checkAnswer();
+        document.getElementById('btn-next-1').onclick = () => this.nextQuestion();
+
+        // Initialize Sliders
+        this.initSlider('v', 2, 5);
+        this.initSlider('h', 2, 5);
+
+        // Start
+        this.generateQuestions();
+        this.loadQuestion(0);
+      },
+
+      generateQuestions() {
+        this.state.questions = [];
+        for (let i = 0; i < this.config.totalQuestions; i++) {
+          // Avoid 1/1, so denominator range 2-5
+          const d1 = Math.floor(Math.random() * 4) + 2; // 2,3,4,5
+          const d2 = Math.floor(Math.random() * 4) + 2;
+          this.state.questions.push({ d1, d2 });
+        }
+      },
+
+      loadQuestion(index) {
+        if (index >= this.state.questions.length) {
+          this.showResult();
+          return;
+        }
+
+        this.state.currentQuestion = index;
+        const q = this.state.questions[index];
+        this.state.targetV = q.d1;
+        this.state.targetH = q.d2;
+
+        // Reset defaults
+        this.state.currentV = 2;
+        this.state.currentH = 2;
+
+        // Update Header
+        const headerProgress = document.querySelector('#activity-1 .progress');
+        if (headerProgress) headerProgress.textContent = `${index + 1}/${this.config.totalQuestions}`;
+
+        // Render Equation with instruction
+        const eqHTML = `
+      <div style="font-size: 20px; color: #666; margin-bottom: 10px;">Adjust the sliders so the overlap represents the result:</div>
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <div class="fraction"><span class="num">1</span><span class="den">${q.d1}</span></div>
+        <span class="operator">×</span>
+        <div class="fraction"><span class="num">1</span><span class="den">${q.d2}</span></div>
+        <span class="operator">=</span>
+        <span class="result-placeholder">?</span>
+      </div>
+    `;
+        document.getElementById('equation-display-1').innerHTML = eqHTML;
+
+        // Reset Visuals
+        this.updateSliderUI('v');
+        this.updateSliderUI('h');
+        this.updateCanvas();
+
+        // Hide feedback
+        document.getElementById('feedback-1').style.display = 'none';
+      },
+
+      initSlider(type, min, max) {
+        const track = document.getElementById(`track-${type}-1`);
+        const thumb = document.getElementById(`thumb-${type}-1`);
+
+        const onMove = (e) => {
+          if (!this.state.isDragging) return;
+
+          const rect = track.getBoundingClientRect();
+          const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+          const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+          let percent;
+
+          if (type === 'v') {
+            // Vertical: Top to Bottom (0% at top)
+            // Adjust for padding inside track image if necessary, assuming full height for now
+            let relativeY = clientY - rect.top;
+            percent = Math.max(0, Math.min(1, relativeY / rect.height));
+          } else {
+            // Horizontal: Left to Right
+            let relativeX = clientX - rect.left;
+            percent = Math.max(0, Math.min(1, relativeX / rect.width));
+          }
+
+          // Map percent to Discrete Steps [2, 3, 4, 5]
+          // 4 steps total. 
+          // 0.00-0.25 -> 2
+          // 0.25-0.50 -> 3
+          // 0.50-0.75 -> 4
+          // 0.75-1.00 -> 5
+          const steps = max - min + 1; // 4
+          const stepIndex = Math.floor(percent * steps);
+          const safeIndex = Math.min(steps - 1, Math.max(0, stepIndex));
+          const value = min + safeIndex;
+
+          // Update State only if changed
+          const stateKey = type === 'v' ? 'currentV' : 'currentH';
+          if (this.state[stateKey] !== value) {
+            this.state[stateKey] = value;
+            if (window.gameEngine) gameEngine.playSound('click'); // Optional sound
+            this.updateSliderUI(type);
+            this.updateCanvas();
+          }
+        };
+
+        const onEnd = () => {
+          this.state.isDragging = false;
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onEnd);
+          document.removeEventListener('touchmove', onMove);
+          document.removeEventListener('touchend', onEnd);
+        };
+
+        const onStart = (e) => {
+          e.preventDefault();
+          this.state.isDragging = true;
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onEnd);
+          document.addEventListener('touchmove', onMove, { passive: false });
+          document.addEventListener('touchend', onEnd);
+          onMove(e); // Trigger immediate update
+        };
+
+        track.addEventListener('mousedown', onStart);
+        track.addEventListener('touchstart', onStart, { passive: false });
+      },
+
+      updateSliderUI(type) {
+        const min = 2, max = 5;
+        const val = type === 'v' ? this.state.currentV : this.state.currentH;
+        const steps = max - min; // 3 gaps
+        const percent = ((val - min) / steps) * 100;
+
+        const thumb = document.getElementById(`thumb-${type}-1`);
+        const label = document.getElementById(`val-${type}-1`);
+
+        if (type === 'v') {
+          // Vertical slider UI updates
+          thumb.style.top = `${percent}%`;
+          label.innerText = `1/${val}`;
+        } else {
+          // Horizontal slider UI updates
+          thumb.style.left = `${percent}%`;
+          label.innerText = `1/${val}`;
+        }
+      },
+
+      updateCanvas() {
+        const d1 = this.state.currentV; // Vertical slider: controls horizontal divisions (columns)
+        const d2 = this.state.currentH; // Horizontal slider: controls vertical divisions (rows)
+
+        const blueLayer = document.getElementById('layer-blue-1');
+        const yellowLayer = document.getElementById('layer-yellow-1');
+        const overlapIndicator = document.getElementById('overlap-1');
+        const gridLines = document.getElementById('grid-lines-1');
+
+        // Blue bar: represents 1/d1 of the width (first column)
+        // Fixed at left edge, width changes with slider
+        const blueWidthPercent = 100 / d1;
+        blueLayer.style.left = '0';
+        blueLayer.style.top = '0';
+        blueLayer.style.width = blueWidthPercent + '%';
+        blueLayer.style.height = '100%';
+        blueLayer.style.transform = 'none';
+
+        // Yellow bar: represents 1/d2 of the height (first row)
+        // Fixed at top edge, height changes with slider
+        const yellowHeightPercent = 100 / d2;
+        yellowLayer.style.left = '0';
+        yellowLayer.style.top = '0';
+        yellowLayer.style.width = '100%';
+        yellowLayer.style.height = yellowHeightPercent + '%';
+        yellowLayer.style.transform = 'none';
+
+        // Overlap (green area): intersection at top-left corner
+        // Size is (1/d1) × (1/d2) of the canvas
+        overlapIndicator.style.left = '0';
+        overlapIndicator.style.top = '0';
+        overlapIndicator.style.width = blueWidthPercent + '%';
+        overlapIndicator.style.height = yellowHeightPercent + '%';
+
+        // Draw Grid Lines using CSS Gradients
+        const vLineStop = 100 / d1;
+        const hLineStop = 100 / d2;
+
+        gridLines.style.backgroundImage = `
+      linear-gradient(to right, rgba(0,0,0,0.2) 2px, transparent 2px),
+      linear-gradient(to bottom, rgba(0,0,0,0.2) 2px, transparent 2px)
+    `;
+        gridLines.style.backgroundSize = `${vLineStop}% 100%, 100% ${hLineStop}%`;
+      },
+
+      checkAnswer() {
+        const { targetV, targetH, currentV, currentH } = this.state;
+        const isCorrect = (targetV === currentV && targetH === currentH);
+
+        if (isCorrect) {
+          if (window.gameEngine) gameEngine.playSound('success');
+          const product = targetV * targetH;
+          this.showFeedback(true, `Correct! The overlap is 1 out of ${product} parts (1/${product}).`);
+        } else {
+          if (window.gameEngine) gameEngine.playSound('error');
+          // Shake animation
+          const canvas = document.getElementById('canvas-1');
+          canvas.animate([
+            { transform: 'translateX(0)' },
+            { transform: 'translateX(-10px)' },
+            { transform: 'translateX(10px)' },
+            { transform: 'translateX(0)' }
+          ], { duration: 300 });
+        }
+      },
+
+      showFeedback(isSuccess, msg) {
+        const fbBox = document.getElementById('feedback-1');
+        const txt = document.getElementById('feedback-msg-1');
+        const btn = document.getElementById('btn-next-1');
+
+        txt.innerHTML = msg;
+        txt.style.color = isSuccess ? '#4CAF50' : '#F44336';
+
+        if (isSuccess) {
+          btn.style.display = 'inline-block';
+          this.state.score++;
+        } else {
+          btn.style.display = 'none'; // Must retry
+          setTimeout(() => {
+            fbBox.style.display = 'none';
+          }, 1500);
+        }
+
+        fbBox.style.display = 'flex';
+      },
+
+      nextQuestion() {
+        this.loadQuestion(this.state.currentQuestion + 1);
+      },
+
+      showResult() {
+        document.getElementById('content-1').innerHTML = `
+      <div style="text-align:center; padding-top:100px;">
+        <h1>Activity complete!</h1>
+        <p style="font-size:24px">Nice work—you're getting the hang of fraction multiplication!</p>
+        <button onclick="ActivityManager.goHome()" style="padding:15px 40px; font-size:24px; border-radius:50px; background:#2196F3; color:white; border:none; cursor:pointer; margin-top:20px;">Back to Home</button>
+      </div>
+    `;
+      },
+
+      destroy() {
+        // Cleanup handled by replacement
+      }
+    };
+    window.ACTIVITY_2 = {
+      config: {
+        totalQuestions: 10,
+        questionType: "random",
+        ranges: {
+          num1: [1, 3],
+          den1: [2, 5],
+          num2: [1, 3],
+          den2: [2, 5]
+        },
+        assets: {
+          bg: "./assets/background (1).png",
+          star: "./assets/icon_star.png",
+          search: "./assets/icon_search.png"
+        }
+      },
+
+      state: {
+        currentQuestion: 0,
+        score: 0,
+        isAnswering: false,
+        currentData: null
+      },
+
+      template: `
+    ${createActivityHeader('Grid Detective', '1/10')}
+    <div class="activity-content-wrapper">
+      <!-- Left: Visualization Area -->
+      <div class="vis-section">
+        <div class="instruction-box">
+          <img src="./assets/icon_search.png" class="icon-hint" />
+          <span>Look at the grid. Which multiplication expression does it represent?</span>
+        </div>
+        
+        <div class="grid-display-area">
+          <div id="math-grid-2" class="math-grid">
+            <!-- Grid cells injected here -->
+          </div>
+          <div class="grid-labels">
+            <div class="label-row" id="label-row-2"></div>
+            <div class="label-col" id="label-col-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Options Area -->
+      <div class="options-section">
+  <div class="options-header">Choose an answer</div>
+        <div id="options-container-2" class="options-grid">
+          <!-- Buttons injected here -->
+        </div>
+        <div id="feedback-area-2" class="feedback-msg"></div>
+      </div>
+    </div>
+
+    <div class="activity-footer">
+  <button class="next-btn" id="next-btn-2" style="display: none;">Next</button>
+    </div>
+
+    <style>
+      #activity-2 {
+        width: 1920px;
+        height: 1080px;
+        background: url('./assets/background (1).png') no-repeat center center;
+        background-size: cover;
+        font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+        color: #333;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      #activity-2 .activity-content-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: calc(100% - 100px); /* Adjust for header/footer */
+        padding: 0 100px;
+        gap: 80px;
+      }
+
+      /* Visualization Section */
+      #activity-2 .vis-section {
+        flex: 1.2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 30px;
+        padding: 40px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        height: 700px;
+        justify-content: flex-start;
+      }
+
+      #activity-2 .instruction-box {
+        font-size: 28px;
+        color: #555;
+        margin-bottom: 40px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        background: #f0f8ff;
+        padding: 15px 30px;
+        border-radius: 50px;
+        border: 2px solid #bde0ff;
+      }
+
+      #activity-2 .icon-hint {
+        width: 40px;
+        height: 40px;
+      }
+
+      #activity-2 .grid-display-area {
+        position: relative;
+        padding: 20px;
+        background: #fff;
+        border-radius: 10px;
+      }
+
+      #activity-2 .math-grid {
+        display: grid;
+        width: 400px;
+        height: 400px;
+        border: 4px solid #333;
+        background: #fff;
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.2);
+      }
+
+      #activity-2 .grid-cell {
+        border: 1px solid rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+      }
+
+      /* Row shading (Yellow) */
+      #activity-2 .row-shaded {
+        background-color: rgba(255, 200, 0, 0.5);
+      }
+
+      /* Column shading (Blue) */
+      #activity-2 .col-shaded {
+        background-color: rgba(0, 100, 255, 0.5);
+      }
+
+      /* Both (Intersection) - CSS handles blending, but we can enforce visual punch */
+      #activity-2 .grid-cell.row-shaded.col-shaded {
+        /* Overlap naturally creates green, but let's make it pop when correct */
+      }
+
+      #activity-2 .grid-cell.highlight-intersection {
+        box-shadow: inset 0 0 15px #fff;
+        border: 2px solid #fff;
+        animation: pulse-2 1s infinite alternate;
+        z-index: 2;
+        background-color: rgba(0, 200, 100, 0.8) !important; /* Force nice green */
+      }
+
+      /* Options Section */
+      #activity-2 .options-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #activity-2 .options-header {
+        font-size: 36px;
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        margin-bottom: 30px;
+        background: #6a4c93;
+        padding: 10px 40px;
+        border-radius: 20px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      }
+
+      #activity-2 .options-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        width: 100%;
+      }
+
+      #activity-2 .option-btn {
+        background: linear-gradient(145deg, #ffffff, #f0f0f0);
+        border: 4px solid #6a4c93;
+        border-radius: 20px;
+        font-size: 32px;
+        font-weight: bold;
+        color: #333;
+        padding: 30px 20px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+        box-shadow: 0 8px 0 #4a3567, 0 15px 20px rgba(0,0,0,0.2);
+      }
+
+      #activity-2 .option-btn:hover {
+        transform: translateY(-2px);
+        background: #fdfdfd;
+      }
+
+      #activity-2 .option-btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 0 0 #4a3567, inset 0 2px 5px rgba(0,0,0,0.2);
+      }
+
+      #activity-2 .option-btn.correct {
+        background: #4CAF50;
+        color: white;
+        border-color: #2E7D32;
+        box-shadow: 0 8px 0 #1B5E20;
+      }
+
+      #activity-2 .option-btn.wrong {
+        background: #F44336;
+        color: white;
+        border-color: #C62828;
+        box-shadow: 0 8px 0 #B71C1C;
+        animation: shake-2 0.5s;
+      }
+
+      #activity-2 .feedback-msg {
+        height: 60px;
+        margin-top: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+
+      #activity-2 .activity-footer {
+        position: absolute;
+        bottom: 30px;
+        right: 50px;
+        z-index: 100;
+      }
+
+      #activity-2 .next-btn {
+        background: linear-gradient(to bottom, #FFD700, #FFA500);
+        border: none;
+        border-radius: 50px;
+        padding: 15px 50px;
+        font-size: 30px;
+        font-weight: bold;
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        border: 3px solid #fff;
+        animation: popIn-2 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      #activity-2 .next-btn:hover {
+        transform: scale(1.05);
+      }
+
+      @keyframes shake-2 {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        50% { transform: translateX(10px); }
+        75% { transform: translateX(-10px); }
+        100% { transform: translateX(0); }
+      }
+
+      @keyframes pulse-2 {
+        from { opacity: 0.8; transform: scale(1); }
+        to { opacity: 1; transform: scale(1.05); }
+      }
+
+      @keyframes popIn-2 {
+        from { transform: scale(0); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+    </style>
+  `,
+
+      init() {
+        const el = document.getElementById('activity-2');
+        el.innerHTML = this.template;
+
+        // Bind next button
+        document.getElementById(`next-btn-2`).addEventListener('click', () => {
+          gameEngine.playSound('click');
+          this.nextQuestion();
+        });
+
+        this.state.score = 0;
+        this.state.currentQuestion = 0;
+        this.loadQuestion();
+      },
+
+      loadQuestion() {
+        if (this.state.currentQuestion >= this.config.totalQuestions) {
+          this.showResult();
+          return;
+        }
+
+        // Update Header Progress
+        const progressText = `${this.state.currentQuestion + 1}/${this.config.totalQuestions}`;
+        // Re-render header part if needed or just assume header updates (Header function usually static, so we might need to manually update if framework doesn't)
+        // Assuming createActivityHeader is static HTML, let's update the text manually if possible, or just proceed.
+        // Finding the progress element from standard header structure (usually .header-right or similar)
+        const headerProgress = document.querySelector('#activity-2 .progress');
+        if (headerProgress) headerProgress.innerText = progressText;
+
+        // Reset UI
+        document.getElementById(`next-btn-2`).style.display = 'none';
+        document.getElementById(`feedback-area-2`).innerText = '';
+        this.state.isAnswering = true;
+
+        // Generate and Render
+        this.state.currentData = this.generateQuestion(this.state.currentQuestion);
+        this.renderQuestion();
+      },
+
+      generateQuestion(index) {
+        // Generate valid parameters
+        // Fraction 1: Rows (num1/den1)
+        // Fraction 2: Cols (num2/den2)
+
+        const r = this.config.ranges;
+
+        // Helper to get random int
+        const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        // Ensure denominators are at least 2 and numerator < denominator
+        let den1 = rand(r.den1[0], r.den1[1]);
+        let num1 = rand(r.num1[0], Math.min(r.num1[1], den1 - 1));
+
+        let den2 = rand(r.den2[0], r.den2[1]);
+        let num2 = rand(r.num2[0], Math.min(r.num2[1], den2 - 1));
+
+        // Calculate Answer
+        const correctEq = `${num1}/${den1} × ${num2}/${den2} = ${num1 * num2}/${den1 * den2}`;
+
+        // Generate Distractors
+        const options = new Set();
+        options.add(correctEq);
+
+        let safety = 0;
+        while (options.size < 4 && safety < 50) {
+          safety++;
+          const type = rand(1, 3);
+          let dNum1 = num1, dDen1 = den1, dNum2 = num2, dDen2 = den2;
+
+          if (type === 1) { // Wrong numerator
+            dNum1 = dNum1 === 1 ? 2 : 1;
+          } else if (type === 2) { // Wrong denominator
+            dDen2 = dDen2 === den2 ? (den2 === 5 ? 4 : den2 + 1) : dDen2;
+          } else { // Swap params
+            dNum1 = num2; dDen1 = den2; dNum2 = num1; dDen2 = den1;
+          }
+
+          // Ensure valid fraction
+          if (dNum1 >= dDen1) dNum1 = dDen1 - 1;
+          if (dNum2 >= dDen2) dNum2 = dDen2 - 1;
+          if (dNum1 < 1) dNum1 = 1;
+          if (dNum2 < 1) dNum2 = 1;
+
+          const wrongEq = `${dNum1}/${dDen1} × ${dNum2}/${dDen2} = ${dNum1 * dNum2}/${dDen1 * dDen2}`;
+          options.add(wrongEq);
+        }
+
+        // Convert Set to Array and Shuffle
+        const optionsArr = Array.from(options).map(eq => ({
+          text: eq,
+          isCorrect: eq === correctEq
+        }));
+
+        // Shuffle
+        for (let i = optionsArr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [optionsArr[i], optionsArr[j]] = [optionsArr[j], optionsArr[i]];
+        }
+
+        return {
+          rows: den1,
+          rowShaded: num1,
+          cols: den2,
+          colShaded: num2,
+          options: optionsArr
+        };
+      },
+
+      renderQuestion() {
+        const data = this.state.currentData;
+        const gridEl = document.getElementById(`math-grid-2`);
+        const optionsContainer = document.getElementById(`options-container-2`);
+
+        // 1. Render Grid
+        // Set grid template
+        gridEl.style.gridTemplateRows = `repeat(${data.rows}, 1fr)`;
+        gridEl.style.gridTemplateColumns = `repeat(${data.cols}, 1fr)`;
+
+        let gridHTML = '';
+        const totalCells = data.rows * data.cols;
+
+        for (let i = 0; i < totalCells; i++) {
+          const rowIndex = Math.floor(i / data.cols); // 0-based row index
+          const colIndex = i % data.cols; // 0-based col index
+
+          const isRowShaded = rowIndex < data.rowShaded;
+          const isColShaded = colIndex < data.colShaded;
+
+          let classes = ['grid-cell'];
+          if (isRowShaded) classes.push('row-shaded');
+          if (isColShaded) classes.push('col-shaded');
+          if (isRowShaded && isColShaded) classes.push('intersection'); // Marker class
+
+          gridHTML += `<div class="${classes.join(' ')}" data-index="${i}"></div>`;
+        }
+        gridEl.innerHTML = gridHTML;
+
+        // 2. Render Options
+        optionsContainer.innerHTML = '';
+        data.options.forEach((opt, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'option-btn';
+          // Format equation for better display (spaces)
+          btn.innerHTML = opt.text.replace('=', '&equals;').replace('×', '&times;');
+          btn.onclick = (e) => this.checkAnswer(opt, e.target);
+          optionsContainer.appendChild(btn);
+        });
+      },
+
+      checkAnswer(optionData, btnElement) {
+        if (!this.state.isAnswering) return;
+
+        if (optionData.isCorrect) {
+          // Correct
+          this.state.isAnswering = false;
+          this.state.score++;
+          gameEngine.playSound('success');
+
+          btnElement.classList.add('correct');
+          document.getElementById(`feedback-area-2`).innerText = "Correct! The overlap is the product.";
+
+          // Highlight intersection on grid
+          const intersections = document.querySelectorAll(`#activity-2 .grid-cell.intersection`);
+          intersections.forEach(cell => {
+            cell.classList.add('highlight-intersection');
+          });
+
+          // Show Next Button
+          const nextBtn = document.getElementById(`next-btn-2`);
+          nextBtn.style.display = 'block';
+
+        } else {
+          // Wrong
+          gameEngine.playSound('error');
+          btnElement.classList.add('wrong');
+          // Remove wrong class after animation to allow re-shake
+          setTimeout(() => btnElement.classList.remove('wrong'), 500);
+          document.getElementById(`feedback-area-2`).innerText = "Try again! Look closely at the overlap.";
+        }
+      },
+
+      nextQuestion() {
+        this.state.currentQuestion++;
+        this.loadQuestion();
+      },
+
+      showResult() {
+        const el = document.getElementById('activity-2');
+        el.innerHTML = `
+  ${createActivityHeader('Grid Detective', 'Done')}
+      <div class="activity-content" style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:80%;">
+        <img src="${this.config.assets.star}" style="width:150px; margin-bottom:30px; animation: popIn-2 0.6s;">
+  <h1 style="font-size: 60px; color: #6a4c93;">Great job!</h1>
+  <p style="font-size: 40px; color: #333;">You got ${this.state.score} / ${this.config.totalQuestions} correct.</p>
+  <button onclick="location.reload()" style="margin-top:40px; padding: 20px 60px; font-size:30px; background:#4CAF50; color:white; border:none; border-radius:50px; cursor:pointer;">Play again</button>
+      </div>
+    `;
+        gameEngine.playSound('success');
+      },
+
+      destroy() {
+        // Cleanup if needed
+        this.state = null;
+      }
+    };
+    window.ACTIVITY_3 = {
+      config: {
+        totalQuestions: 10,
+        assets: {
+          "half_of_fourth": "./assets/item_6_half_of_fourth.png",
+          "third_of_third": "./assets/item_7_third_of_third.png",
+          "two_thirds_of_half": "./assets/item_5_two_thirds_of_half.png",
+          "half_of_third": "./assets/item_4_half_of_third.png",
+          "third_of_half": "./assets/item_2_third_of_half.png",
+          "fourth_of_half": "./assets/item_3_fourth_of_half.png",
+          "half_of_half": "./assets/item_1_half_of_half.png",
+          "half_of_fifth": "./assets/item_8_half_of_fifth.png",
+          "fifth_of_half": "./assets/item_9_fifth_of_half.png",
+          "three_fourths_of_half": "./assets/item_10_three_fourths_of_half.png"
+        },
+        preset_questions: [
+          { name: "half_of_half", category: "1/2 × 1/2" },
+          { name: "third_of_half", category: "1/3 × 1/2" },
+          { name: "fourth_of_half", category: "1/4 × 1/2" },
+          { name: "half_of_third", category: "1/2 × 1/3" },
+          { name: "two_thirds_of_half", category: "2/3 × 1/2" },
+          { name: "half_of_fourth", category: "1/2 × 1/4" },
+          { name: "third_of_third", category: "1/3 × 1/3" },
+          { name: "half_of_fifth", category: "1/2 × 1/5" },
+          { name: "fifth_of_half", category: "1/5 × 1/2" },
+          { name: "three_fourths_of_half", category: "3/4 × 1/2" }
+        ]
+      },
+
+      template: `
+  ${createActivityHeader('Model Match', '1/10')}
+    <div class="activity-content">
+      <div class="drop-zones-container" id="drop-zones-3">
+        <!-- Drop Zones will be injected here -->
+      </div>
+      
+      <div class="cards-pool" id="source_cards_container">
+  <div class="pool-label">Drag each model onto the matching equation</div>
+        <div class="cards-wrapper" id="cards-wrapper-3">
+          <!-- Cards will be injected here -->
+        </div>
+      </div>
+    </div>
+    
+    <div class="activity-footer">
+  <button class="next-btn" id="next-btn-3" disabled>Next</button>
+    </div>
+
+    <style>
+      #activity-3 {
+        width: 1920px;
+        height: 1080px;
+        background-color: #f0f4f8;
+        font-family: 'Arial', sans-serif;
+        position: relative;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      #activity-3 .activity-content {
+        height: calc(100% - 100px);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 40px 100px;
+        box-sizing: border-box;
+      }
+
+      /* Drop Zones Area */
+      #activity-3 .drop-zones-container {
+        display: flex;
+        justify-content: center;
+        gap: 100px;
+        margin-top: 60px;
+        height: 350px;
+      }
+
+      #activity-3 .drop-zone {
+        width: 350px;
+        height: 350px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border: 4px dashed #333;
+        border-radius: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: all 0.3s ease;
+        z-index: 15; /* Requirement: Higher than components */
+      }
+
+      #activity-3 .drop-zone.hover {
+        border-color: #4CAF50;
+        box-shadow: 0 0 30px rgba(76, 175, 80, 0.4);
+        transform: scale(1.05);
+        background-color: rgba(255, 255, 255, 0.95);
+      }
+
+      #activity-3 .drop-zone.filled {
+        border-style: solid;
+        border-color: #2196F3;
+        background-color: #fff;
+      }
+
+      #activity-3 .drop-zone-text {
+        font-size: 48px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 20px;
+        pointer-events: none;
+      }
+
+      #activity-3 .slotted-image {
+        width: 200px;
+        height: 200px;
+        object-fit: contain;
+        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      /* Card Pool Area */
+      #activity-3 .cards-pool {
+        background-color: #B0C4DE;
+        border-radius: 24px;
+        padding: 30px;
+        box-shadow: inset 0 4px 12px rgba(0,0,0,0.1);
+        height: 350px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      #activity-3 .pool-label {
+        font-size: 24px;
+        color: #445;
+        margin-bottom: 30px;
+        font-weight: bold;
+      }
+
+      #activity-3 .cards-wrapper {
+        display: flex;
+        justify-content: center;
+        gap: 80px;
+        width: 100%;
+        height: 100%;
+        align-items: center;
+      }
+
+      #activity-3 .draggable-card {
+        width: 220px;
+        height: 220px;
+        background-color: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: grab;
+        transition: transform 0.2s, box-shadow 0.2s;
+        z-index: 20;
+        position: relative;
+      }
+
+      #activity-3 .draggable-card:active {
+        cursor: grabbing;
+        transform: scale(1.05);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+        z-index: 100;
+      }
+
+      #activity-3 .card-image {
+        width: 180px;
+        height: 180px;
+        object-fit: contain;
+        pointer-events: none;
+      }
+
+      #activity-3 .activity-footer {
+        position: absolute;
+        bottom: 30px;
+        right: 40px;
+      }
+
+      #activity-3 .next-btn {
+        padding: 15px 40px;
+        font-size: 24px;
+        background-color: #2196F3;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        opacity: 0.5;
+        pointer-events: none;
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        transition: all 0.3s;
+      }
+
+      #activity-3 .next-btn:not([disabled]) {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      #activity-3 .next-btn:not([disabled]):hover {
+        background-color: #1976D2;
+        transform: translateY(-2px);
+      }
+
+      @keyframes popIn {
+        0% { transform: scale(0); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+    </style>
+  `,
+
+      state: {
+        currentQuestionIndex: 0,
+        currentPair: [],
+        matchedCount: 0,
+        isComplete: false,
+        dragInstances: []
+      },
+
+      init() {
+        // 1. Render Template
+        const container = document.getElementById('activity-3');
+        container.innerHTML = this.template;
+
+        // 2. Event Listeners
+        document.getElementById(`next-btn-3`).onclick = () => this.nextQuestion();
+
+        // 3. Initialize Game Logic
+        this.loadQuestion();
+      },
+
+      loadQuestion() {
+        const total = this.config.totalQuestions;
+        const progressText = `${this.state.currentQuestionIndex + 1}/${total}`;
+
+        // Update Header Progress
+        const headerProgress = document.querySelector('#activity-3 .progress');
+        if (headerProgress) headerProgress.textContent = progressText;
+
+        // Select 2 unique random questions for this round
+        const pool = [...this.config.preset_questions];
+        const selection = [];
+
+        // Random pick 1
+        const idx1 = Math.floor(Math.random() * pool.length);
+        selection.push(pool[idx1]);
+        pool.splice(idx1, 1);
+
+        // Random pick 2
+        const idx2 = Math.floor(Math.random() * pool.length);
+        selection.push(pool[idx2]);
+
+        this.state.currentPair = selection;
+        this.state.matchedCount = 0;
+        this.state.isComplete = false;
+
+        // Disable Next Button
+        const nextBtn = document.getElementById(`next-btn-3`);
+        nextBtn.disabled = true;
+
+        this.renderQuestion();
+      },
+
+      renderQuestion() {
+        const dropContainer = document.getElementById(`drop-zones-3`);
+        const cardsContainer = document.getElementById(`cards-wrapper-3`);
+
+        // Clear previous
+        dropContainer.innerHTML = '';
+        cardsContainer.innerHTML = '';
+        this.state.dragInstances.forEach(d => d.destroy && d.destroy());
+        this.state.dragInstances = [];
+
+        const pair = this.state.currentPair;
+
+        // 1. Render Drop Zones (Equations)
+        // We shuffle zones visually or keep order? Let's keep order of selection for zones
+        pair.forEach((item, index) => {
+          const zone = document.createElement('div');
+          zone.className = 'drop-zone';
+          zone.dataset.category = item.category;
+          zone.dataset.index = index;
+          zone.innerHTML = `
+        <div class="drop-zone-text">${item.category}</div>
+        <div class="placeholder-icon" style="font-size:40px; opacity:0.2;">?</div>
+      `;
+
+          // Register Drop Zone using GameEngine
+          gameEngine.makeDropZone(zone, { group: `group-$3` });
+
+          // Add enter/leave feedback manually for clearer visual cues
+          gameEngine.on('enter', ({ target }) => {
+            if (target === zone && !zone.classList.contains('filled')) {
+              zone.classList.add('hover');
+            }
+          });
+          gameEngine.on('leave', ({ target }) => {
+            if (target === zone) {
+              zone.classList.remove('hover');
+            }
+          });
+
+          dropContainer.appendChild(zone);
+        });
+
+        // 2. Render Draggable Cards (Images)
+        // Shuffle cards so they don't align perfectly with zones
+        const shuffledItems = [...pair].sort(() => Math.random() - 0.5);
+
+        shuffledItems.forEach((item) => {
+          const card = document.createElement('div');
+          card.className = 'draggable-card';
+          card.dataset.category = item.category;
+
+          const imgUrl = this.config.assets[item.name] || '';
+          card.innerHTML = `<img src="${imgUrl}" class="card-image" draggable="false">`;
+
+          cardsContainer.appendChild(card);
+
+          // Make Draggable
+          const drag = new TeachingGameEngine.Draggable(card, {
+            container: document.getElementById(`activity-3`),
+            onDragStart: () => {
+              card.style.zIndex = 100;
+              gameEngine.playSound('click');
+            },
+            onDragEnd: (e) => {
+              card.style.zIndex = 20;
+              this.handleDrop(card, e);
+            }
+          });
+          this.state.dragInstances.push(drag);
+        });
+      },
+
+      handleDrop(cardEl, event) {
+        // Hide all hover effects
+        document.querySelectorAll(`#activity-3 .drop-zone`).forEach(z => z.classList.remove('hover'));
+
+        // Check collision with drop zones
+        const cardRect = cardEl.getBoundingClientRect();
+        const zones = document.querySelectorAll(`#activity-3 .drop-zone`);
+
+        let matchedZone = null;
+
+        zones.forEach(zone => {
+          if (zone.classList.contains('filled')) return; // Already filled
+
+          const zoneRect = zone.getBoundingClientRect();
+          if (this.isOverlapping(cardRect, zoneRect)) {
+            matchedZone = zone;
+          }
+        });
+
+        if (matchedZone) {
+          // Logic Check
+          if (cardEl.dataset.category === matchedZone.dataset.category) {
+            this.onMatchSuccess(cardEl, matchedZone);
+          } else {
+            this.onMatchFail(cardEl);
+          }
+        } else {
+          // Return to start
+          this.resetCardPosition(cardEl);
+        }
+      },
+
+      onMatchSuccess(cardEl, zoneEl) {
+        gameEngine.playSound('success');
+        gameEngine.showFeedback(zoneEl, 'pulse');
+
+        // 1. Fly-in Animation
+        const imgUrl = cardEl.querySelector('img').src;
+
+        // Create flying clone
+        const flyingItem = document.createElement('img');
+        flyingItem.src = imgUrl;
+        flyingItem.style.cssText = `
+      position: fixed;
+      width: 180px; height: 180px;
+      left: ${cardEl.getBoundingClientRect().left}px;
+      top: ${cardEl.getBoundingClientRect().top}px;
+      z-index: 1000;
+      transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+      pointer-events: none;
+      object-fit: contain;
+    `;
+        document.body.appendChild(flyingItem);
+
+        // Hide original
+        cardEl.style.visibility = 'hidden';
+
+        // Target position
+        const zoneRect = zoneEl.getBoundingClientRect();
+        const targetX = zoneRect.left + (zoneRect.width / 2) - 90; // 180/2 = 90
+        const targetY = zoneRect.top + (zoneRect.height / 2) - 90;
+
+        requestAnimationFrame(() => {
+          flyingItem.style.left = `${targetX}px`;
+          flyingItem.style.top = `${targetY}px`;
+          flyingItem.style.transform = 'scale(0.8)'; // Shrink slightly to fit
+        });
+
+        // Cleanup and Update Zone
+        setTimeout(() => {
+          flyingItem.remove();
+
+          // Update Zone State
+          zoneEl.classList.add('filled');
+          zoneEl.querySelector('.placeholder-icon').style.display = 'none';
+
+          // Append image to zone
+          const settledImg = document.createElement('img');
+          settledImg.src = imgUrl;
+          settledImg.className = 'slotted-image';
+          zoneEl.appendChild(settledImg);
+
+          // Remove card entirely
+          cardEl.remove();
+
+          // Update Game State
+          this.state.matchedCount++;
+          if (this.state.matchedCount >= 2) {
+            this.onRoundComplete();
+          }
+        }, 500);
+      },
+
+      onMatchFail(cardEl) {
+        gameEngine.playSound('error');
+        gameEngine.showFeedback(cardEl, 'shake');
+        this.resetCardPosition(cardEl);
+      },
+
+      resetCardPosition(cardEl) {
+        cardEl.style.transition = 'transform 0.3s ease-out';
+        cardEl.style.transform = 'translate(0, 0)';
+        setTimeout(() => {
+          cardEl.style.transition = '';
+        }, 300);
+      },
+
+      onRoundComplete() {
+        this.state.isComplete = true;
+        const nextBtn = document.getElementById(`next-btn-3`);
+        nextBtn.disabled = false;
+
+        // Play a level complete sound or effect if available
+        setTimeout(() => {
+          gameEngine.playSound('success'); // Reinforce success
+        }, 600);
+      },
+
+      nextQuestion() {
+        if (this.state.currentQuestionIndex < this.config.totalQuestions - 1) {
+          this.state.currentQuestionIndex++;
+          this.loadQuestion();
+        } else {
+          this.showResult();
+        }
+      },
+
+      showResult() {
+        const container = document.getElementById(`activity-3`).querySelector('.activity-content');
+        container.innerHTML = `
+      <div style="text-align:center; margin-top:150px;">
+  <h1 style="font-size:60px; color:#4CAF50;">Awesome!</h1>
+  <p style="font-size:32px; color:#555;">You finished all matches.</p>
+  <button onclick="ActivityManager.goHome()" style="margin-top:40px; padding:20px 60px; font-size:28px; background:#2196F3; color:white; border:none; border-radius:50px; cursor:pointer;">Back to Home</button>
+      </div>
+    `;
+        document.getElementById(`next-btn-3`).style.display = 'none';
+      },
+
+      isOverlapping(rect1, rect2) {
+        // A bit of tolerance (overlap must be significant)
+        const tolerance = 50;
+        return !(
+          rect1.right < rect2.left + tolerance ||
+          rect1.left > rect2.right - tolerance ||
+          rect1.bottom < rect2.top + tolerance ||
+          rect1.top > rect2.bottom - tolerance
+        );
+      },
+
+      destroy() {
+        this.state.dragInstances.forEach(d => d.destroy && d.destroy());
+        // Cleanup any global listeners if added
+      }
+    };
+
+  // Start
+    document.addEventListener('DOMContentLoaded', () => {
+      ActivityManager.show(0);
+    });
+  </script>
+</body>
+
+</html>

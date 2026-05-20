@@ -1,0 +1,146 @@
+# ManipulativeAgent: A Collaborative Multi-Agent Framework for Interactive Mathematical Content Generation
+
+_A Multi-Agent Framework for Automated Virtual Interactive Manipulatives Generation_
+
+We present ManipulativeAgent, a multi-agent framework that automatically generates virtual interactive manipulatives from natural language descriptions. The system simulates professional educational development teams through four specialized agents: (1) **Learning Scientist Agent** for instructional needs analysis and component matching; (2) **Instructional Designer Agent** for progressive activity sequence design; (3) **Learning Engineer Agent** for material generation and code synthesis; and (4) **Tester Agent** for automated testing and iterative repair. The framework also includes a dynamically extensible **Virtual Manipulative Library** of reusable instructional tools.
+
+---
+
+## Overview
+
+Virtual interactive manipulatives are web applications that integrate virtual mathematical tools with progressive instructional activities for elementary mathematics education. They face two key limitations: accessibility (teachers lack programming skills) and personalization (fixed templates cannot adapt to varied needs). Our framework addresses these challenges by providing an end-to-end generation experience from natural language to working manipulatives without requiring prompt engineering or programming expertise.
+
+---
+
+## Framework
+
+<img src="./assets/framework.png" alt="Framework Overview" width="860"/>
+
+Given a natural language description of teaching needs, the **Learning Scientist Agent** analyzes core concepts and matches components from the library; the **Instructional Designer Agent** designs progressive activities following the presentation-practice-challenge model; the **Learning Engineer Agent** generates materials and synthesizes code with component context injection; the **Tester Agent** validates correctness through task-guided exploratory testing and performs iterative repairs until quality thresholds are met.
+
+---
+
+## Performance
+
+We conduct comprehensive evaluation through automated assessment and a frontline teacher survey.
+
+### Automated Evaluation
+
+We evaluate on a dataset of 40 teaching scenarios from real teacher search queries. A Visual LLM-based method automatically interacts with each manipulative and scores on four dimensions (1–5 scale).
+
+| Method            | Visual Aesthetics | Interaction Richness | Instructional Effectiveness | Content Accuracy |
+| ----------------- | ----------------: | -------------------: | --------------------------: | ---------------: |
+| Feixiang Teacher  |              4.00 |                 2.57 |                        2.50 |             3.17 |
+| Laoshibang        |              4.25 |                 2.66 |                        2.88 |             4.09 |
+| Gemini 3.0 Pro    |              4.32 |                 2.80 |                        2.95 |             3.76 |
+| Claude 4.5 Sonnet |              4.31 |                 2.83 |                        2.93 |             4.00 |
+| **Ours**    |    **4.43** |       **3.88** |              **3.26** |   **4.12** |
+
+> ManipulativeAgent outperforms commercial platforms and direct LLM generation on all dimensions. The largest gain is in **Interaction Richness** (3.88 vs 2.83), where the component library reduces interaction failures common in directly generated code.
+
+### Teacher Survey (N=89)
+
+89 frontline primary school mathematics teachers from 15 provinces evaluated 20 generated manipulatives.
+
+| Dimension               |  Mean ± Std |
+| ----------------------- | -----------: |
+| Content Accuracy        | 4.31 ± 0.81 |
+| Curriculum Alignment    | 4.21 ± 0.85 |
+| Interactive Experience  | 4.51 ± 0.61 |
+| Difficulty Breakthrough | 4.54 ± 0.60 |
+| Ease of Use             | 4.25 ± 0.84 |
+| Workload Reduction      | 4.42 ± 0.75 |
+
+- **Acceptance Rate:** 92.2% of teachers expressed willingness to use these resources.
+- **Key Takeaways:** Teachers rated "Difficulty Breakthrough" (4.54) and "Interactive Experience" (4.51) highest, indicating the generated manipulatives help students intuitively understand abstract concepts.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- API keys for LLM services
+
+### Installation
+
+```bash
+cd manipulative-agent-ui/manipulative-agent-ui
+
+# Frontend dependencies
+npm install
+
+# Backend dependencies
+cd server
+pip install -r requirements.txt
+```
+
+### Running
+
+**Start Backend:**
+
+```bash
+cd manipulative-agent-ui/manipulative-agent-ui/server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+**Start Frontend:**
+
+```bash
+cd manipulative-agent-ui/manipulative-agent-ui
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser.
+
+---
+
+## Project Structure
+
+```text
+manipulative-agent-ui/
+├── README.md                            # This file
+└── manipulative-agent-ui/               # Project root
+    ├── package.json                     # Frontend dependencies
+    ├── vite.config.ts                   # Vite configuration
+    ├── src/                             # React Frontend implementation
+    │   ├── components/                  # UI components
+    │   ├── hooks/                       # Custom React hooks
+    │   └── App.tsx                      # Main frontend application
+    ├── server/                          # FastAPI Backend implementation
+    │   ├── main.py                      # API entry point
+    │   ├── session.py                   # State management & SSE
+    │   ├── pipeline/                    # Agent pipeline implementation
+    │   ├── services/                    # External module integrations
+    │   └── prompts/                     # Agent system prompts
+    ├── data/                            # Component mapping data
+    └── public/                          # Static assets
+```
+
+---
+
+## Demo Gallery
+
+Coming soon: Demo videos showcasing generated virtual interactive manipulatives for various mathematical topics including clocks, protractor, parallelogram and more.
+
+| Method            | clock                                                                                            | Fraction Multiplication                                                                                                                | parallelogram                                                                                                    | protractor                                                                                                 | renminbi                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Feixiang Teacher  | [fxls_clock](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/feixianglaoshi/fxls_clock.html)  | [fxls_fractionMultiplication](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/feixianglaoshi/fxls_fractionMultiplication.html)      | [fxls_parallelogram](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/feixianglaoshi/fxls_parallelogram.html)  | [fxls_protractor](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/feixianglaoshi/fxls_protractor.html)  | [fxls_renminbi](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/feixianglaoshi/fxls_renminbi.html)  |
+| Laoshibang        | [lsb_clock](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/laoshibang/lsb_clock.html)        | [lsb_fractionMultiplication](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/laoshibang/lsb_fractionMultiplication.html)            | [lsb_parallelogram](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/laoshibang/lsb_parallelogram.html)        | [lsb_protractor](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/laoshibang/lsb_protractor.html)        | [lsb_renminbi](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/laoshibang/lsb_renminbi.html)        |
+| Gemini 3.0 Pro    | [gemini_clock](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/gemini/gemini_clock.html)      | [gemini_fractionMultiplication](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/gemini/gemini_fractionMultiplication.html)          | [gemini_parallelogram](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/gemini/gemini_parallelogram.html)      | [gemini_protractor](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/gemini/gemini_protractor.html)      | [gemini_renminbi](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/gemini/gemini_renminbi.html)      |
+| Claude 4.5 Sonnet | [claude_clock](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/claude/claude_clock.html)      | [claude_fractionMultiplication](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/claude/claude_fractionMultiplication.html)          | [claude_parallelogram](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/claude/claude_parallelogram.html)      | [claude_protractor](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/claude/claude_protractor.html)      | [claude_renminbi](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/claude/claude_renminbi.html)      |
+| **Ours**    | **[clock](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/ourMethod/clock/index.html)** | **[Fraction Multiplication](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/ourMethod/Fraction%20Multiplication/index.html)** | **[parallelogram](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/ourMethod/parallelogram/index.html)** | **[protractor](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/ourMethod/protractor/index.html)** | **[Renminbi](https://bingmengzi.github.io/CIKM_2026_demo_code/demo/ourMethod/Renminbi/index.html)** |
+
+---
+
+## Video Demonstration
+
+You can watch the full demonstration of the ManipulativeAgent framework in action. The video showcases the multi-agent collaboration process and features various examples of generating virtual mathematical interactives from natural language prompts.
+
+<video src="./vedio/ManipulativeAgent.mp4" controls="controls" width="860">
+  Your browser does not support the video tag.
+</video>
+
+Alternatively, you can watch it on YouTube: [https://youtu.be/qcBegpTqF1U](https://youtu.be/qcBegpTqF1U)

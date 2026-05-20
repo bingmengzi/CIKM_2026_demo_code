@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallelogram Area Derivation - Interactive Demo</title>
+    
+    <!-- Tailwind CSS (UI styles) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Anime.js (animation library) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <!-- Google Fonts (optional) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f9ff;
+            background-image: radial-gradient(#bae6fd 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+    /* Custom grid background for the demo area */
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                              linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+        }
+
+        .step-card {
+            transition: all 0.3s ease;
+        }
+
+    /* Utility class: hidden element */
+        .hidden-opacity {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Main container -->
+    <main class="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden border-4 border-white">
+        
+    <!-- Header -->
+        <header class="bg-indigo-600 text-white p-6 text-center relative overflow-hidden">
+            <div class="relative z-10">
+                <h1 class="text-3xl md:text-4xl font-bold mb-2">🔷 Parallelogram Area Derivation</h1>
+                <p class="text-indigo-100 text-sm md:text-base">Use a cut-and-rearrange method to transform a parallelogram into a rectangle</p>
+            </div>
+            <!-- Decorative circles -->
+            <div class="absolute top-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full -translate-x-10 -translate-y-10"></div>
+            <div class="absolute bottom-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full translate-x-10 translate-y-10"></div>
+        </header>
+
+    <!-- Demo area -->
+        <div class="p-4 md:p-8">
+            <!-- Canvas container -->
+            <div class="relative w-full aspect-[16/10] bg-slate-50 rounded-2xl border-2 border-slate-200 overflow-hidden grid-bg shadow-inner mb-6" id="canvas-container">
+                
+                <!-- SVG canvas -->
+                <svg viewBox="0 0 800 500" class="w-full h-full" id="main-svg">
+                    <defs>
+                        <!-- Arrow marker -->
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                        </marker>
+                    </defs>
+
+                    <!-- Base and height labels (hidden initially) -->
+                    <g id="labels-group">
+                        <!-- Base -->
+                        <line x1="200" y1="420" x2="600" y2="420" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)" />
+                        <text x="400" y="450" text-anchor="middle" fill="#475569" font-size="24" font-weight="bold">Base</text>
+                        
+                        <!-- Height -->
+                        <line x1="150" y1="100" x2="150" y2="400" stroke="#64748b" stroke-width="2" stroke-dasharray="5,5" class="hidden-opacity" id="height-line-marker"/>
+                        <text x="130" y="250" text-anchor="end" fill="#475569" font-size="24" font-weight="bold" class="hidden-opacity" id="height-text">Height (h)</text>
+                    </g>
+
+                    <!-- Shapes group -->
+                    <g id="shapes-group" transform="translate(0,0)">
+                        <!-- Main trapezoid (right part) -->
+                        <!-- Points: (300,100) -> (700,100) -> (600,400) -> (300,400) 
+                             Wait, let's recalculate for a nice parallelogram.
+                             Base = 400. Height = 300.
+                             Top Left: (200, 100). Top Right: (600, 100).
+                             Bottom Left: (100, 400). Bottom Right: (500, 400).
+                             Cut vertical from Top Left (200,100) down to (200,400).
+                             Triangle is Left side: (100,400)-(200,100)-(200,400).
+                             Trapezoid is Right side: (200,400)-(200,100)-(600,100)-(500,400).
+                        -->
+                        
+                        <!-- Ghost shape (outline of the final rectangle) -->
+                        <rect x="200" y="100" width="400" height="300" fill="none" stroke="#22c55e" stroke-width="3" stroke-dasharray="10,5" class="hidden-opacity" id="ghost-rect" />
+
+                        <!-- Trapezoid (fixed part) -->
+                        <path id="trapezoid" d="M200,400 L200,100 L600,100 L500,400 Z" fill="#60a5fa" stroke="#2563eb" stroke-width="3" opacity="0.9" />
+
+                        <!-- Triangle (moving part) -->
+                        <path id="triangle" d="M100,400 L200,100 L200,400 Z" fill="#fb923c" stroke="#ea580c" stroke-width="3" opacity="0.9" />
+                        
+                        <!-- Cut line (dashed) -->
+                        <line id="cut-line" x1="200" y1="100" x2="200" y2="400" stroke="white" stroke-width="4" stroke-dasharray="10,5" opacity="0" />
+                        <text id="cut-scissor" x="180" y="250" font-size="40" opacity="0">✂️</text>
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Status panel -->
+            <div class="bg-indigo-50 rounded-xl p-4 mb-6 flex items-start space-x-4 border border-indigo-100">
+                <div class="bg-indigo-100 p-2 rounded-full text-2xl" id="mascot">🤔</div>
+                <div>
+                    <h3 class="font-bold text-indigo-900 text-lg" id="instruction-title">Think about it</h3>
+                    <p class="text-indigo-700" id="instruction-text">This is a parallelogram. If we want its area but only know the rectangle area formula (length × width), what can we do?</p>
+                </div>
+            </div>
+
+            <!-- Formula panel (updates dynamically) -->
+            <div class="flex justify-center items-center space-x-4 h-16 mb-6 text-xl md:text-2xl font-bold text-slate-700" id="formula-area">
+                <span class="opacity-50">Area = ?</span>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex flex-wrap gap-4 justify-center">
+                <button onclick="resetDemo()" class="px-6 py-3 rounded-xl bg-slate-200 text-slate-700 font-bold hover:bg-slate-300 transition flex items-center">
+                    <span>↺ Reset</span>
+                </button>
+                
+                <button id="next-btn" onclick="nextStep()" class="px-8 py-3 rounded-xl bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 hover:scale-105 transition flex items-center space-x-2">
+                    <span>Next</span>
+                    <span>👉</span>
+                </button>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="w-full bg-slate-200 h-2 rounded-full mt-8 overflow-hidden">
+                <div id="progress-bar" class="bg-green-500 h-full w-0 transition-all duration-500"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    // State
+        let currentStep = 0;
+        const totalSteps = 4;
+
+    // DOM references
+        const els = {
+            title: document.getElementById('instruction-title'),
+            text: document.getElementById('instruction-text'),
+            mascot: document.getElementById('mascot'),
+            nextBtn: document.getElementById('next-btn'),
+            formula: document.getElementById('formula-area'),
+            progressBar: document.getElementById('progress-bar'),
+            triangle: document.getElementById('triangle'),
+            cutLine: document.getElementById('cut-line'),
+            cutScissor: document.getElementById('cut-scissor'),
+            heightLineMarker: document.getElementById('height-line-marker'),
+            heightText: document.getElementById('height-text'),
+            ghostRect: document.getElementById('ghost-rect')
+        };
+
+    // Step configuration
+        const steps = [
+            {
+                title: "1. Observe the shape",
+                text: "This is a parallelogram. It has a base and a height. We don't yet know how to compute its area...",
+                mascot: "🤔",
+                action: () => {
+                    // Initial state
+                    anime({ targets: '#triangle', translateX: 0, easing: 'easeOutElastic(1, .8)' });
+                    els.heightLineMarker.classList.add('hidden-opacity');
+                    els.heightText.classList.add('hidden-opacity');
+                    els.ghostRect.classList.add('hidden-opacity');
+                    updateFormula("Area = ?");
+                }
+            },
+            {
+                title: "2. Draw the height and cut",
+                text: "Draw a height line on the left and cut off a right triangle.",
+                mascot: "✂️",
+                action: () => {
+                    // Show the height and the cut line
+                    els.heightLineMarker.classList.remove('hidden-opacity');
+                    els.heightText.classList.remove('hidden-opacity');
+                    
+                    anime.timeline()
+                        .add({
+                            targets: '#cut-line',
+                            opacity: [0, 1],
+                            duration: 500
+                        })
+                        .add({
+                            targets: '#cut-scissor',
+                            opacity: [0, 1, 0],
+                            translateY: [0, 150],
+                            duration: 1000,
+                            easing: 'easeInOutQuad'
+                        })
+                        .add({
+                            targets: '#triangle',
+                            fill: '#fb923c', // highlight color
+                            duration: 300
+                        });
+                    
+                    updateFormula("Area = ? (get ready to transform)");
+                }
+            },
+            {
+                title: "3. Slide to fill",
+                text: "Magic! Slide the cut triangle to the right to fill the gap.",
+                mascot: "🚚",
+                action: () => {
+                    els.ghostRect.classList.remove('hidden-opacity');
+                    
+                    // Slide: from x=0 to x=400 (the base length)
+                    anime({
+                        targets: '#triangle',
+                        translateX: 400, // base width: 600 - 200 = 400
+                        duration: 2000,
+                        easing: 'easeInOutExpo',
+                        begin: function() {
+                            // Optional sound cue could go here; we use visuals instead
+                        }
+                    });
+
+                    updateFormula("Transforming...");
+                }
+            },
+            {
+                title: "4. Success!",
+                text: "Now it forms a rectangle. Rectangle area = length × width, so the parallelogram area is base × height.",
+                mascot: "🎉",
+                action: () => {
+                    els.nextBtn.innerHTML = "<span>✨ Finished</span>";
+                    els.nextBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                    els.nextBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                    
+                    // Highlight the rectangle
+                    anime({
+                        targets: '#ghost-rect',
+                        strokeDashoffset: [anime.setDashoffset, 0],
+                        easing: 'easeInOutSine',
+                        duration: 1500
+                    });
+
+                    // Final formula
+                    els.formula.innerHTML = `
+                        <div class="flex flex-col items-center">
+                            <div class="text-green-600">Rectangle area = length × width</div>
+                            <div class="text-2xl mt-1">⬇️</div>
+                            <div class="text-indigo-600 text-3xl">Parallelogram area = base × height</div>
+                            <div class="text-sm text-gray-400 font-mono mt-1">S = a × h</div>
+                        </div>
+                    `;
+                    
+                    // Celebration
+                    anime({
+                        targets: '#main-svg',
+                        scale: [1, 1.05, 1],
+                        duration: 800
+                    });
+                }
+            }
+        ];
+
+        // Helper: update formula text
+        function updateFormula(html) {
+            els.formula.innerHTML = `<span class="transition-all duration-300">${html}</span>`;
+        }
+
+        // Next step
+        function nextStep() {
+            if (currentStep < totalSteps - 1) {
+                currentStep++;
+                updateUI();
+            } else {
+                // On the last step, trigger a celebration effect
+                confettiEffect();
+            }
+        }
+
+        // Reset
+        function resetDemo() {
+            currentStep = 0;
+            
+            // Reset button styles
+            els.nextBtn.innerHTML = "<span>Next</span><span>👉</span>";
+            els.nextBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            els.nextBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+
+            // Reset SVG elements
+            anime.remove('#triangle');
+            anime.remove('#cut-scissor');
+            anime.remove('#ghost-rect');
+            
+            // Snap back
+            anime({ targets: '#triangle', translateX: 0, duration: 800 });
+            els.cutLine.style.opacity = 0;
+            els.cutScissor.style.opacity = 0;
+            
+            updateUI();
+        }
+
+        // Core UI update
+        function updateUI() {
+            const stepData = steps[currentStep];
+            
+            // Update text
+            els.title.innerText = stepData.title;
+            els.text.innerText = stepData.text;
+            els.mascot.innerText = stepData.mascot;
+
+            // Update progress bar
+            const progress = ((currentStep + 1) / totalSteps) * 100;
+            els.progressBar.style.width = `${progress}%`;
+
+            // Run step action
+            stepData.action();
+        }
+
+        // Simple confetti effect
+        function confettiEffect() {
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
+            const container = document.getElementById('canvas-container');
+            
+            for(let i=0; i<30; i++) {
+                const el = document.createElement('div');
+                el.style.position = 'absolute';
+                el.style.left = '50%';
+                el.style.top = '50%';
+                el.style.width = '10px';
+                el.style.height = '10px';
+                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                el.style.borderRadius = '50%';
+                el.style.zIndex = 100;
+                container.appendChild(el);
+                
+                anime({
+                    targets: el,
+                    translateX: () => anime.random(-300, 300),
+                    translateY: () => anime.random(-200, 200),
+                    scale: [0, 1.5],
+                    opacity: [1, 0],
+                    duration: 1500,
+                    easing: 'easeOutExpo',
+                    complete: () => el.remove()
+                });
+            }
+        }
+
+    // Init
+        updateUI();
+
+    </script>
+</body>
+</html>

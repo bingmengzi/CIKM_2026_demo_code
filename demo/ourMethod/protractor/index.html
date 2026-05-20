@@ -1,0 +1,2328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protractor Adventure</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f0f4f8;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+
+    #app-container {
+      width: 1920px;
+      height: 1080px;
+      background: #fff;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform-origin: top left;
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .page.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+  /* Shared component styles */
+    .activity-header {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      z-index: 10;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 2px solid white;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 18px;
+    }
+
+    .back-btn:hover {
+      background: white;
+      color: #667eea;
+    }
+
+    .progress {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .activity-content {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: auto;
+    }
+
+    .activity-footer {
+      height: 80px;
+      min-height: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .next-btn {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      border: none;
+      color: white;
+      padding: 15px 50px;
+      border-radius: 30px;
+      font-size: 22px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .next-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .next-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+  /* Feedback animations */
+    @keyframes correct-pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    @keyframes wrong-shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-10px);
+      }
+
+      75% {
+        transform: translateX(10px);
+      }
+    }
+
+    .feedback-correct {
+      animation: correct-pulse 0.5s;
+    }
+
+    .feedback-wrong {
+      animation: wrong-shake 0.5s;
+    }
+  </style>
+  <!-- Three.js for 3D Geometry Activities -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- protractor Component (ES Module) -->
+  <script type="module">
+    // Register the component with ActivityManager (so activities wait until it's loaded)
+    if (window.ActivityManager) {
+      ActivityManager.registerComponent('protractor-component');
+    }
+    import './protractor.js';
+    console.log('[Component] Protractor component loaded');
+  </script>
+</head>
+
+<body>
+  <div id="app-container">
+    <div id="home-page" class="page active"></div>
+    <div id="activity-1" class="page"></div>
+    <div id="activity-2" class="page"></div>
+    <div id="activity-3" class="page"></div>
+  </div>
+  <script>
+  // ========== TeachingGameEngine (drag & drop engine) ==========
+    class TeachingGameEngine {
+      constructor() {
+        this.draggables = [];
+        this.dropZones = [];
+        this.events = {};
+        this.isMobile = 'ontouchstart' in window;
+        this._initStyle();
+      }
+      makeDraggable(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { revert: true, targetGroup: 'default', ...options };
+        const offsetParent = element.offsetParent || document.body;
+        const parentRect = offsetParent.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(element);
+        if (computedStyle.position === 'static') {
+          element.style.position = 'absolute';
+          element.style.left = (rect.left - parentRect.left) + 'px';
+          element.style.top = (rect.top - parentRect.top) + 'px';
+        }
+        config.initialX = parseFloat(element.style.left) || 0;
+        config.initialY = parseFloat(element.style.top) || 0;
+        config.zIndex = computedStyle.zIndex;
+        this._bindDragEvents(element, config);
+        element.style.cursor = 'grab';
+        element.classList.add('tge-draggable');
+      }
+      makeDropZone(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { group: 'default', accept: null, ...options };
+        element.classList.add('tge-dropzone');
+        this.dropZones.push({ element, config });
+      }
+      playSound(type) { console.log(`[Audio] Playing ${type} sound`); }
+      showFeedback(el, type = 'pulse') {
+        const element = this._getElement(el);
+        if (!element) return;
+        element.classList.remove('tge-anim-shake', 'tge-anim-pulse');
+        void element.offsetWidth;
+        element.classList.add(`tge-anim-${type}`);
+        setTimeout(() => element.classList.remove(`tge-anim-${type}`), 800);
+      }
+      on(eventName, callback) {
+        if (!this.events[eventName]) this.events[eventName] = [];
+        this.events[eventName].push(callback);
+      }
+      _getElement(el) { return typeof el === 'string' ? document.getElementById(el) : el; }
+      _bindDragEvents(element, config) {
+        let isDragging = false, startX, startY, initialLeft, initialTop;
+        const self = this;
+        const startHandler = (e) => {
+          e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          isDragging = true; startX = point.clientX; startY = point.clientY;
+          initialLeft = parseFloat(element.style.left) || 0;
+          initialTop = parseFloat(element.style.top) || 0;
+          element.style.zIndex = 1000; element.style.cursor = 'grabbing';
+          element.classList.add('tge-dragging');
+          self._emit('dragStart', { element });
+        };
+        const moveHandler = (e) => {
+          if (!isDragging) return; e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          element.style.left = `${initialLeft + point.clientX - startX}px`;
+          element.style.top = `${initialTop + point.clientY - startY}px`;
+          self._checkDropZones(element, config);
+        };
+        const endHandler = (e) => {
+          if (!isDragging) return; isDragging = false;
+          element.style.zIndex = config.zIndex; element.style.cursor = 'grab';
+          element.classList.remove('tge-dragging');
+          const dropZone = self._checkDropZones(element, config);
+          if (dropZone) { self._emit('drop', { source: element, target: dropZone.element }); self._snapTo(element, dropZone.element); }
+          else { if (config.revert) self._revert(element, config); self._emit('dragEnd', { element, success: false }); }
+          self.dropZones.forEach(z => z.element.classList.remove('tge-drag-over'));
+        };
+        if (this.isMobile) { element.addEventListener('touchstart', startHandler, { passive: false }); window.addEventListener('touchmove', moveHandler, { passive: false }); window.addEventListener('touchend', endHandler); }
+        else { element.addEventListener('mousedown', startHandler); window.addEventListener('mousemove', moveHandler); window.addEventListener('mouseup', endHandler); }
+      }
+      _checkDropZones(dragEl, dragConfig) {
+        let bestZone = null, maxArea = 0; const dragRect = dragEl.getBoundingClientRect();
+        this.dropZones.forEach(zone => {
+          if (zone.config.group !== dragConfig.targetGroup) return;
+          const zoneRect = zone.element.getBoundingClientRect();
+          const overlap = !(dragRect.right < zoneRect.left || dragRect.left > zoneRect.right || dragRect.bottom < zoneRect.top || dragRect.top > zoneRect.bottom);
+          if (overlap) { const x_overlap = Math.max(0, Math.min(dragRect.right, zoneRect.right) - Math.max(dragRect.left, zoneRect.left)); const y_overlap = Math.max(0, Math.min(dragRect.bottom, zoneRect.bottom) - Math.max(dragRect.top, zoneRect.top)); const area = x_overlap * y_overlap; if (area > maxArea) { maxArea = area; bestZone = zone; } }
+        });
+        this.dropZones.forEach(z => z === bestZone ? z.element.classList.add('tge-drag-over') : z.element.classList.remove('tge-drag-over'));
+        return bestZone;
+      }
+      _snapTo(dragEl, targetEl) { const offsetParent = dragEl.offsetParent || document.body; const parentRect = offsetParent.getBoundingClientRect(); const targetRect = targetEl.getBoundingClientRect(); const dragRect = dragEl.getBoundingClientRect(); const centerX = targetRect.left + targetRect.width / 2 - dragRect.width / 2 - parentRect.left; const centerY = targetRect.top + targetRect.height / 2 - dragRect.height / 2 - parentRect.top; dragEl.style.transition = 'all 0.3s ease-out'; dragEl.style.left = centerX + 'px'; dragEl.style.top = centerY + 'px'; setTimeout(() => dragEl.style.transition = '', 300); }
+      _revert(element, config) { element.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; element.style.left = config.initialX + 'px'; element.style.top = config.initialY + 'px'; setTimeout(() => element.style.transition = '', 300); }
+      _emit(name, data) { if (this.events[name]) this.events[name].forEach(cb => cb(data)); }
+      _initStyle() { if (document.getElementById('tge-style')) return; const css = `.tge-draggable { touch-action: none; user-select: none; } .tge-drag-over { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); transform: scale(1.02); transition: transform 0.2s; } .tge-anim-shake { animation: tge-shake 0.5s; } .tge-anim-pulse { animation: tge-pulse 0.5s; } @keyframes tge-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } } @keyframes tge-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }`; const style = document.createElement('style'); style.id = 'tge-style'; style.textContent = css; document.head.appendChild(style); }
+      static Draggable = class {
+        constructor(element, options = {}) { this.element = typeof element === 'string' ? document.getElementById(element) : element; this.options = { container: document.body, ...options }; this.isDragging = false; this.isMobile = 'ontouchstart' in window; this._bind(); }
+        _bind() {
+          const el = this.element; let startX, startY, elX, elY;
+          const start = (e) => { e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; this.isDragging = true; startX = pt.clientX; startY = pt.clientY; elX = parseFloat(el.style.left) || 0; elY = parseFloat(el.style.top) || 0; if (this.options.onDragStart) this.options.onDragStart(e); };
+          const move = (e) => { if (!this.isDragging) return; e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; el.style.left = (elX + pt.clientX - startX) + 'px'; el.style.top = (elY + pt.clientY - startY) + 'px'; };
+          const end = (e) => { if (!this.isDragging) return; this.isDragging = false; if (this.options.onDragEnd) this.options.onDragEnd(e); };
+          if (this.isMobile) { el.addEventListener('touchstart', start, { passive: false }); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end); }
+          else { el.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end); }
+        }
+        destroy() { }
+      };
+    }
+    window.TeachingGameEngine = TeachingGameEngine;
+    window.gameEngine = new TeachingGameEngine();
+
+    // Responsive scaling
+    function resizeApp() {
+      const c = document.getElementById('app-container');
+      const scaleX = window.innerWidth / 1920;
+      const scaleY = window.innerHeight / 1080;
+      const scale = Math.min(scaleX, scaleY);
+      // Calculate the actual size after scaling
+      const scaledWidth = 1920 * scale;
+      const scaledHeight = 1080 * scale;
+      // Calculate centering offsets
+      const offsetX = (window.innerWidth - scaledWidth) / 2;
+      const offsetY = (window.innerHeight - scaledHeight) / 2;
+      // Apply transform: translate to center first, then scale
+      c.style.left = offsetX + 'px';
+      c.style.top = offsetY + 'px';
+      c.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', resizeApp);
+    resizeApp();
+
+    // Activity manager
+    const ActivityManager = {
+      current: null,
+      // Components to wait for (filled by component registration)
+      _requiredComponents: [],
+
+      async show(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        if (this.current && window[`ACTIVITY_${this.current}`]?.destroy) {
+          window[`ACTIVITY_${this.current}`].destroy();
+        }
+        if (id === 0) {
+          document.getElementById('home-page').classList.add('active');
+          if (window.HOME_PAGE) HOME_PAGE.init();
+          this.current = null;
+        } else {
+          document.getElementById(`activity-${id}`).classList.add('active');
+          const activity = window[`ACTIVITY_${id}`];
+          if (activity) {
+            // Wait for all components to finish registering
+            await this._waitForComponents();
+            activity.init();
+          }
+          this.current = id;
+        }
+      },
+
+      // Wait until all registered components are ready
+      async _waitForComponents() {
+        if (this._requiredComponents.length === 0) return;
+        const promises = this._requiredComponents.map(name =>
+          customElements.whenDefined(name).catch(() => { })
+        );
+        await Promise.all(promises);
+      },
+
+      // Register a component that should be awaited (called by component scripts)
+      registerComponent(tagName) {
+        if (!this._requiredComponents.includes(tagName)) {
+          this._requiredComponents.push(tagName);
+        }
+      },
+
+      goHome() { this.show(0); }
+    };
+    window.ActivityManager = ActivityManager;  // Expose on window for LLM-generated code
+
+    // Utility helpers
+    function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function playSound(type) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        if (type === 'correct') {
+          osc.frequency.setValueAtTime(523, ctx.currentTime);
+          osc.frequency.setValueAtTime(784, ctx.currentTime + 0.15);
+        } else {
+          osc.frequency.setValueAtTime(200, ctx.currentTime);
+        }
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch (e) { }
+    }
+
+    /**
+     * Create the activity header (includes the Back button)
+     * @param {string} title - Activity title
+     * @param {string} progressText - Optional progress text, e.g. "1/5"
+     * @returns {string} HTML string
+     */
+    function createActivityHeader(title, progressText = '') {
+      return `
+        <div class="activity-header">
+          <button class="back-btn" onclick="ActivityManager.goHome()">🏠 Back to Home</button>
+          <h2 style="font-size: 28px; margin: 0;">${title}</h2>
+          <div class="progress">${progressText}</div>
+        </div>
+      `;
+    }
+    window.createActivityHeader = createActivityHeader;
+
+    // ========== 3D Geometry Tools (Built-in) ==========
+    // For 3D geometry activities. Supports: cuboid, cube, sphere, cylinder, cone, frustum, prism, pyramid
+    const Geometry3DHelper = {
+      // Supported types and default parameters
+      TYPES: {
+        cuboid: { l: 4, w: 6, h: 3 },
+        cube: { size: 4 },
+        sphere: { radius: 3 },
+        cylinder: { radiusTop: 2, radiusBottom: 2, height: 5 },
+        cone: { radius: 2, height: 5 },
+        frustum: { radiusTop: 1, radiusBottom: 2.5, height: 4 },
+        prism: { sides: 6, radius: 2, height: 4 },
+        pyramid: { sides: 4, radius: 2, height: 5 }
+      },
+
+  /**
+   * Create a 3D geometry renderer
+   * @param {HTMLElement} container - Container element
+   * @param {string} type - Type: cuboid/cube/sphere/cylinder/cone/frustum/prism/pyramid
+   * @param {object} params - Parameters object
+   * @param {object} options - Optional config { autoRotate, showEdges }
+   * @returns {object} Controller { updateParams, setType, dispose }
+   */
+      create(container, type = 'cuboid', params = null, options = {}) {
+        const self = {
+          scene: null, camera: null, renderer: null,
+          mesh: null, edges: null, edgeLines: null, geometry: null,
+          currentType: type,
+          currentParams: params || { ...this.TYPES[type] },
+          options: { autoRotate: true, showEdges: true, ...options },
+          boxMaterials: null
+        };
+
+  // Initialize scene
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 400;
+
+        self.scene = new THREE.Scene();
+        self.scene.background = new THREE.Color(0xe8f4f8);
+
+        self.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+        self.camera.position.set(12, 9, 15);
+        self.camera.lookAt(0, 0, 0);
+
+        self.renderer = new THREE.WebGLRenderer({ antialias: true });
+        self.renderer.setSize(width, height);
+        self.renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(self.renderer.domElement);
+
+  // Lighting
+        self.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        self.scene.add(dirLight);
+
+  // Materials
+        self.boxMaterials = [
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db })
+        ];
+
+  // Create geometry
+        const createGeometry = () => {
+          if (self.mesh) { self.scene.remove(self.mesh); self.geometry.dispose(); }
+          if (self.edgeLines) { self.scene.remove(self.edgeLines); self.edges.dispose(); }
+
+          const p = self.currentParams;
+          switch (self.currentType) {
+            case 'cube': self.geometry = new THREE.BoxGeometry(p.size, p.size, p.size); break;
+            case 'cuboid': self.geometry = new THREE.BoxGeometry(p.w, p.h, p.l); break;
+            case 'sphere': self.geometry = new THREE.SphereGeometry(p.radius, 32, 24); break;
+            case 'cylinder': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'cone': self.geometry = new THREE.ConeGeometry(p.radius, p.height, 32); break;
+            case 'frustum': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'prism': self.geometry = new THREE.CylinderGeometry(p.radius, p.radius, p.height, p.sides); break;
+            case 'pyramid': self.geometry = new THREE.ConeGeometry(p.radius, p.height, p.sides); self.geometry.rotateY(Math.PI / p.sides); break;
+            default: self.geometry = new THREE.BoxGeometry(3, 3, 3);
+          }
+
+          const mat = (self.currentType === 'cuboid' || self.currentType === 'cube') ? self.boxMaterials : new THREE.MeshLambertMaterial({ color: 0x3498db });
+          self.mesh = new THREE.Mesh(self.geometry, mat);
+          self.scene.add(self.mesh);
+
+          if (self.options.showEdges) {
+            self.edges = new THREE.EdgesGeometry(self.geometry, 15);
+            self.edgeLines = new THREE.LineSegments(self.edges, new THREE.LineBasicMaterial({ color: 0x333333 }));
+            self.scene.add(self.edgeLines);
+          }
+        };
+        createGeometry();
+
+  // Animation loop
+        let animId;
+        const animate = () => {
+          animId = requestAnimationFrame(animate);
+          if (self.options.autoRotate && self.mesh) {
+            self.mesh.rotation.y += 0.005;
+            if (self.edgeLines) self.edgeLines.rotation.y += 0.005;
+          }
+          self.renderer.render(self.scene, self.camera);
+        };
+        animate();
+
+  // Return controller
+        return {
+          updateParams(newParams) {
+            self.currentParams = { ...self.currentParams, ...newParams };
+            createGeometry();
+          },
+          setType(newType, newParams) {
+            self.currentType = newType;
+            self.currentParams = newParams || { ...Geometry3DHelper.TYPES[newType] };
+            createGeometry();
+          },
+          isCube() {
+            if (self.currentType === 'cube') return true;
+            if (self.currentType === 'cuboid') {
+              const { l, w, h } = self.currentParams;
+              return l === w && w === h;
+            }
+            return false;
+          },
+          dispose() {
+            cancelAnimationFrame(animId);
+            if (self.geometry) self.geometry.dispose();
+            if (self.edges) self.edges.dispose();
+            self.boxMaterials.forEach(m => m.dispose());
+            self.renderer.dispose();
+            const canvas = self.renderer.domElement;
+            if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+          }
+        };
+      }
+    };
+
+  // ========== LLM-generated code injection area ==========
+    window.HOME_PAGE = {
+      template: `
+    <style>
+      @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .hp-container {
+        font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      }
+      .hp-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        padding: 30px;
+        width: 320px;
+        cursor: pointer;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        border: 2px solid rgba(255,255,255,0.5);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .hp-card:hover {
+        transform: translateY(-15px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+        border-color: #fff;
+        background: rgba(255, 255, 255, 1);
+      }
+      .hp-card-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        font-weight: bold;
+        color: white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      }
+      .hp-card-title {
+        font-size: 24px;
+        color: #333;
+        margin-bottom: 12px;
+        font-weight: 700;
+      }
+      .hp-card-desc {
+        font-size: 16px;
+        color: #666;
+        line-height: 1.6;
+        flex-grow: 1;
+      }
+      .hp-btn {
+        margin-top: 20px;
+        padding: 8px 24px;
+        border-radius: 20px;
+        background: #f0f0f0;
+        color: #555;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+      .hp-card:hover .hp-btn {
+        background: #333;
+        color: #fff;
+      }
+    </style>
+
+    <div class="hp-container" style="
+        width: 100%; 
+        height: 100%; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        background-image: url('./assets/background.png');
+        background-size: cover;
+        background-position: center;
+        overflow: hidden;
+        position: relative;
+    ">
+      <!-- Overlay for better text readability -->
+      <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.4)); pointer-events: none;"></div>
+
+      <!-- Content -->
+      <div style="z-index: 1; text-align: center; animation: fadeInDown 0.8s ease-out;">
+        <h1 style="
+            font-size: 72px; 
+            color: #fff; 
+            margin: 0 0 10px 0; 
+            text-shadow: 0 4px 8px rgba(0,0,0,0.3); 
+            font-weight: 800;
+            letter-spacing: 2px;
+  ">Protractor Adventure</h1>
+        <p style="
+            font-size: 32px; 
+            color: rgba(255,255,255,0.95); 
+            margin: 0 0 60px 0; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            font-weight: 500;
+  ">Explore the magic of angles</p>
+      </div>
+
+      <div style="
+          display: flex; 
+          gap: 40px; 
+          z-index: 1; 
+          padding: 0 40px;
+          animation: fadeInUp 0.8s ease-out 0.2s backwards;
+      ">
+        
+        <!-- Activity 1 -->
+        <div class="hp-card activity-card" data-id="1">
+          <div class="hp-card-icon" style="background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);">1</div>
+          <div class="hp-card-title">Angles in Everyday Life</div>
+          <div class="hp-card-desc">Look at everyday objects, guess their angle, then drag them onto the protractor to see the exact reading.</div>
+          <div class="hp-btn">Start Exploring</div>
+        </div>
+
+        <!-- Activity 2 -->
+        <div class="hp-card activity-card" data-id="2">
+          <div class="hp-card-icon" style="background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);">2</div>
+          <div class="hp-card-title">Sharp Eyes Challenge</div>
+          <div class="hp-card-desc">The system generates a random angle. First guess it with the slider, then drag in the item to verify.</div>
+          <div class="hp-btn">Start Challenge</div>
+        </div>
+
+        <!-- Activity 3 -->
+        <div class="hp-card activity-card" data-id="3">
+          <div class="hp-card-icon" style="background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);">3</div>
+          <div class="hp-card-title">Find the Target Angle</div>
+          <div class="hp-card-desc">Given a target degree value, choose from 3 similar-looking angles and measure them to find the correct answer.</div>
+          <div class="hp-btn">Start Searching</div>
+        </div>
+
+      </div>
+    </div>
+  `,
+      init() {
+        document.getElementById('home-page').innerHTML = this.template;
+
+        // Bind click events to activity cards
+        document.querySelectorAll('.activity-card').forEach(card => {
+          card.addEventListener('click', (e) => {
+            const id = parseInt(card.getAttribute('data-id'), 10);
+            // Call the framework-provided ActivityManager
+            ActivityManager.show(id);
+          });
+        });
+      }
+    };
+    window.ACTIVITY_1 = {
+      // === Base config ===
+      config: {
+        totalQuestions: 10,
+        questionType: "preset",
+        assets: {
+          item_5_watermelon: "./assets/item_5_watermelon.png",
+          item_1_clock: "./assets/item_1_clock.png",
+          item_3_hanger: "./assets/item_3_hanger.png",
+          item_4_laptop: "./assets/item_4_laptop.png",
+          btn_next: "./assets/btn_next.png",
+          item_6_book: "./assets/item_6_book.png",
+          background: "./assets/background (1).png",
+          item_2_pizza: "./assets/item_2_pizza.png",
+          item_7_scissors: "./assets/item_7_scissors.png",
+          item_8_star: "./assets/item_8_star.png",
+          item_9_fan: "./assets/item_9_fan.png",
+          item_10_hexagon: "./assets/item_10_hexagon.png"
+        }
+      },
+
+  // === Question data ===
+      questions: [
+        { id: "q1", name: "Clock at 3 o'clock", angle: 90, assetKey: "item_1_clock" },
+        { id: "q2", name: "Sliced pizza", angle: 45, assetKey: "item_2_pizza" },
+        { id: "q3", name: "Clothes hanger", angle: 120, assetKey: "item_3_hanger" },
+        { id: "q4", name: "Open laptop", angle: 100, assetKey: "item_4_laptop" },
+        { id: "q5", name: "Watermelon slice", angle: 60, assetKey: "item_5_watermelon" },
+        { id: "q6", name: "Corner of a book", angle: 90, assetKey: "item_6_book" },
+        { id: "q7", name: "Open scissors", angle: 30, assetKey: "item_7_scissors" },
+        { id: "q8", name: "Tip of a five-point star", angle: 36, assetKey: "item_8_star" },
+        { id: "q9", name: "Folding fan", angle: 150, assetKey: "item_9_fan" },
+        { id: "q10", name: "Hexagon block", angle: 120, assetKey: "item_10_hexagon" }
+      ],
+
+  // === Internal state ===
+      state: {
+        currentQuestion: 0,
+        isMeasured: false
+      },
+
+      // === Template ===
+      template: `
+    ${createActivityHeader('Angles in Everyday Life', '<span id="progress-text-1">1/10</span>')}
+    
+    <div class="activity-body">
+      <!-- Left: items to measure -->
+      <div class="sidebar-container" id="item-container-1">
+        <div class="sidebar-header">Items to Measure</div>
+        <div class="sidebar-content" id="sidebar-content-1">
+          <!-- Dynamically insert draggable images -->
+        </div>
+        <div class="sidebar-hint">Drag an item onto the protractor to measure it</div>
+      </div>
+
+      <!-- Right: protractor workspace -->
+      <div class="workspace-container">
+        <!-- ⚠️ Use the specified component -->
+        <protractor-component 
+          id="protractor-1" 
+          radius="220" 
+          width="700px" 
+          height="500px">
+        </protractor-component>
+        
+        <div class="instruction-text" id="feedback-1">Drag an item from the left into the protractor</div>
+      </div>
+    </div>
+
+    <!-- Bottom navigation -->
+    <div class="activity-footer">
+      <button class="next-btn disabled" id="next-btn-1">Next</button>
+    </div>
+
+    <style>
+      #activity-1 {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: url('./assets/background (1).png') no-repeat center center;
+        background-size: cover;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        overflow: hidden;
+      }
+
+      #activity-1 .activity-body {
+        display: flex;
+        width: 100%;
+        height: calc(100% - 100px); /* subtract header and footer */
+        padding: 20px;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Sidebar styles */
+      #activity-1 .sidebar-container {
+        width: 300px;
+        height: 500px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 3px solid #2196F3;
+        border-radius: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        margin-right: 40px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        z-index: 20;
+      }
+
+      #activity-1 .sidebar-header {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      #activity-1 .sidebar-content {
+        flex: 1;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 2px dashed #ddd;
+        border-radius: 10px;
+        background: #f9f9f9;
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      #activity-1 .draggable-item {
+        max-width: 220px;
+        max-height: 220px;
+        cursor: grab;
+        transition: transform 0.2s, opacity 0.2s;
+        filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2));
+      }
+
+      #activity-1 .draggable-item:hover {
+        transform: scale(1.05);
+      }
+
+      #activity-1 .draggable-item.dragging {
+        opacity: 0.4; /* Ghost effect */
+        cursor: grabbing;
+      }
+
+      #activity-1 .sidebar-hint {
+        color: #666;
+        font-size: 16px;
+        text-align: center;
+      }
+
+  /* Right workspace */
+      #activity-1 .workspace-container {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        z-index: 10;
+      }
+
+      #activity-1 .instruction-text {
+        margin-top: 20px;
+        font-size: 24px;
+        color: #333;
+        background: rgba(255,255,255,0.8);
+        padding: 10px 30px;
+        border-radius: 50px;
+        font-weight: bold;
+        transition: all 0.3s;
+      }
+
+  /* Component style overrides */
+      #protractor-1 {
+        --component-width: 800px;
+        --component-height: 500px;
+      }
+
+  /* Bottom button */
+      #activity-1 .activity-footer {
+        position: absolute;
+        bottom: 20px;
+        right: 40px;
+        z-index: 100;
+      }
+
+      #activity-1 .next-btn {
+        width: 160px;
+        height: 60px;
+        background: url('./assets/btn_next.png') no-repeat center center;
+        background-size: contain;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.1s;
+        font-size: 0; /* Hide text */
+      }
+
+      #activity-1 .next-btn:active {
+        transform: scale(0.95);
+      }
+
+      #activity-1 .next-btn.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        filter: grayscale(1);
+      }
+      
+  /* Fly-in animation element */
+      .flying-item-1 {
+        position: fixed;
+        z-index: 1000;
+        pointer-events: none;
+        transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+    </style>
+  `,
+
+      // === Initialization ===
+      init() {
+        // 1. Render template
+        document.getElementById(`activity-1`).innerHTML = this.template;
+
+        // 2. Get component instances
+        this.protractor = document.getElementById(`protractor-1`);
+        this.nextBtn = document.getElementById(`next-btn-1`);
+        this.feedbackText = document.getElementById(`feedback-1`);
+        this.progressText = document.getElementById(`progress-text-1`);
+
+        // 3. Bind component events
+        // Listen to protractor change events (triggered after a successful Drop or API call)
+        this.protractor.addEventListener('change', (e) => {
+          this.handleMeasurement(e.detail);
+        });
+
+        // 4. Bind next button
+        this.nextBtn.addEventListener('click', () => {
+          if (!this.state.isMeasured) return;
+          this.nextQuestion();
+        });
+
+        // 5. Load the first question
+        this.loadQuestion(0);
+      },
+
+      // === Load question ===
+      loadQuestion(index) {
+        this.state.currentQuestion = index;
+        this.state.isMeasured = false;
+
+        // Update progress
+        this.progressText.innerText = `${index + 1}/${this.config.totalQuestions}`;
+
+        // Reset component
+        this.protractor.clearMeasurement();
+
+        // Reset button
+        this.nextBtn.classList.add('disabled');
+        this.feedbackText.innerText = "Drag an item from the left into the protractor";
+        this.feedbackText.style.color = "#333";
+
+        // Get question data
+        const qData = this.questions[index];
+
+        // Render sidebar item
+        const sidebarContent = document.getElementById(`sidebar-content-1`);
+        sidebarContent.innerHTML = ''; // Clear
+
+        const img = document.createElement('img');
+        img.src = this.config.assets[qData.assetKey];
+        img.className = 'draggable-item';
+        img.draggable = true;
+        img.id = `drag-item-${index}`;
+
+        // Build ItemData that matches the protocol
+        const itemData = {
+          id: qData.id,
+          name: qData.name,
+          angle: qData.angle,
+          image: this.config.assets[qData.assetKey],
+          visual: {
+            domWidth: 200,
+            domHeight: 200
+          }
+        };
+
+        // Bind drag events
+        img.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('application/json', JSON.stringify(itemData));
+          e.dataTransfer.effectAllowed = 'copy';
+          img.classList.add('dragging');
+
+          // Store reference to the dragging element for later animation calculations
+          this.currentDragSource = img;
+        });
+
+        img.addEventListener('dragend', (e) => {
+          img.classList.remove('dragging');
+        });
+
+        sidebarContent.appendChild(img);
+      },
+
+      // === Handle measurement result ===
+      handleMeasurement(detail) {
+        const { value, currentItem } = detail;
+
+        if (currentItem) {
+          this.state.isMeasured = true;
+          this.nextBtn.classList.remove('disabled');
+
+          // Feedback text
+          this.feedbackText.innerText = `Measured successfully! The angle is about ${Math.round(value)}°`;
+          this.feedbackText.style.color = "#4CAF50";
+
+          // Play success sound
+          if (window.gameEngine) {
+            window.gameEngine.playSound('success');
+          }
+
+          // Visual feedback: hide the sidebar item (optional, simulate item being "taken")
+          if (this.currentDragSource) {
+            this.currentDragSource.style.opacity = '0';
+            this.currentDragSource.style.pointerEvents = 'none';
+          }
+        }
+      },
+
+      // === Next ===
+      nextQuestion() {
+        if (this.state.currentQuestion < this.config.totalQuestions - 1) {
+          this.loadQuestion(this.state.currentQuestion + 1);
+        } else {
+          this.showResult();
+        }
+      },
+
+      // === Result ===
+      showResult() {
+        // Simple completion status
+        this.feedbackText.innerText = "Congrats! You completed all measurement tasks!";
+        this.feedbackText.style.color = "#2196F3";
+        this.nextBtn.style.display = 'none';
+
+        // Show completion state in the sidebar
+        document.getElementById(`sidebar-content-1`).innerHTML = `
+      <div style="font-size:60px;">🎉</div>
+    `;
+
+        if (window.gameEngine) {
+          window.gameEngine.playSound('success');
+        }
+      },
+
+      // === Destroy ===
+      destroy() {
+        // Cleanup (if needed)
+      }
+    };
+    window.ACTIVITY_2 = {
+      config: {
+        totalQuestions: 10,
+        questionType: "random"
+      },
+
+      template: `
+  ${createActivityHeader('Sharp Eyes Challenge', '1/10')}
+    
+    <div class="activity-content">
+      <!-- Main game area -->
+      <div class="game-layout">
+        
+        <!-- Left: prompt & estimation panel -->
+        <div class="panel-card container-panel">
+          <div class="panel-title">
+            <img src="./assets/icon_question_mark.png" class="title-icon">
+            <span>Step 1: Observe & estimate</span>
+          </div>
+          
+          <!-- Mystery angle display area (also a drag source) -->
+          <div id="mystery-angle-container-2" class="mystery-container" draggable="false">
+             <div id="angle-display-2" class="angle-svg-wrapper"></div>
+             <div class="drag-hint">👆 After verifying, you can drag it to measure</div>
+          </div>
+
+          <!-- Slider controls -->
+          <div class="slider-section">
+            <div class="slider-label">My guess: <span id="guess-value-2" class="highlight-text">45</span>°</div>
+            <div class="slider-wrapper">
+              <input type="range" id="guess-slider-2" class="custom-slider" min="0" max="180" step="1" value="45">
+            </div>
+          </div>
+
+          <!-- Verify button -->
+          <button id="verify-btn-2" class="verify-btn">
+            Verify & measure
+          </button>
+        </div>
+
+        <!-- Right: protractor component area -->
+        <div class="tool-area">
+           <div class="panel-title" style="margin-bottom: 20px;">
+            <span>Step 2: Drag into the protractor to measure</span>
+          </div>
+          <!-- ⚠️ Required component -->
+          <protractor-component id="protractor-2" radius="180"></protractor-component>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Result feedback modal -->
+    <div id="result-modal-2" class="result-modal hidden">
+      <div class="modal-content">
+        <div id="feedback-icon-2" class="feedback-icon"></div>
+        <h3 id="feedback-title-2">Measurement complete!</h3>
+        <div class="result-details">
+          <p>Actual angle: <span id="real-angle-2" class="val-real"></span>°</p>
+          <p>Your estimate: <span id="user-guess-2" class="val-guess"></span>°</p>
+          <p>Error: <span id="diff-val-2" class="val-diff"></span>°</p>
+        </div>
+        <div class="score-display" id="score-display-2">Score: 100</div>
+        <button id="next-btn-2" class="next-btn">Next</button>
+      </div>
+    </div>
+
+    <!-- Styles -->
+    <style>
+      /* Base layout */
+      #activity-2 {
+        width: 1920px;
+        height: 1080px;
+        position: relative;
+        overflow: hidden;
+        background: url('./assets/background (2).png') no-repeat center center;
+        background-size: cover;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      .activity-content {
+        position: absolute;
+        top: 80px;
+        left: 0;
+        width: 100%;
+        height: calc(100% - 80px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .game-layout {
+        display: flex;
+        gap: 60px;
+        align-items: flex-start;
+      }
+
+  /* Left panel */
+      .panel-card {
+        width: 500px;
+        background: #fff;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: transform 0.3s;
+        z-index: 20; /* Ensure it's below drag layers but above the background */
+      }
+
+      .panel-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        width: 100%;
+      }
+
+      .title-icon {
+        width: 32px;
+        height: 32px;
+      }
+
+  /* Mystery angle container */
+      .mystery-container {
+        width: 400px;
+        height: 300px;
+        background: #f9f9f9;
+        border: 2px dashed #ddd;
+        border-radius: 12px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        cursor: default;
+        transition: all 0.3s;
+        user-select: none;
+      }
+
+      .mystery-container.draggable-active {
+        border-color: #2196F3;
+        background: #e3f2fd;
+        cursor: grab;
+        animation: pulse-border 2s infinite;
+      }
+
+      .mystery-container.draggable-active:active {
+        cursor: grabbing;
+      }
+
+      @keyframes pulse-border {
+        0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+      }
+
+      .angle-svg-wrapper svg {
+        width: 250px;
+        height: 250px;
+        filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.1));
+      }
+
+      .drag-hint {
+        position: absolute;
+        bottom: 10px;
+        font-size: 14px;
+        color: #2196F3;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .mystery-container.draggable-active .drag-hint {
+        opacity: 1;
+      }
+
+  /* Slider styles */
+      .slider-section {
+        width: 100%;
+        margin: 30px 0;
+      }
+
+      .slider-label {
+        font-size: 20px;
+        color: #555;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .highlight-text {
+        font-size: 28px;
+        color: #FF9800;
+        font-weight: bold;
+      }
+
+      .slider-wrapper {
+        width: 100%;
+        padding: 0 10px;
+        box-sizing: border-box;
+      }
+
+      .custom-slider {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 12px;
+        border-radius: 6px;
+        background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+        outline: none;
+        transition: opacity .2s;
+      }
+
+      .custom-slider:disabled {
+        background: #ddd;
+        opacity: 0.6;
+      }
+
+      .custom-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 36px;
+        height: 36px;
+        background: url('./assets/ui_slider_handle.png') no-repeat center center;
+        background-size: contain;
+        cursor: pointer;
+        transition: transform 0.1s;
+        margin-top: -2px; 
+      }
+      
+      .custom-slider:not(:disabled)::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+      }
+
+  /* Verify button */
+      .verify-btn {
+        width: 200px;
+        height: 50px;
+        background: url('./assets/btn_verify_bg.png') no-repeat center center;
+        background-size: 100% 100%;
+        border: none;
+        color: white;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.1s;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+      }
+
+      .verify-btn:active {
+        transform: scale(0.95);
+      }
+
+      .verify-btn:disabled {
+        filter: grayscale(1);
+        cursor: not-allowed;
+      }
+
+  /* Right-side protractor area */
+      .tool-area {
+        width: 600px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* Component style overrides */
+      protractor-component {
+        width: 600px;
+        --component-width: 600px;
+        /* The protractor SVG drop zone must have a high enough z-index to receive Drop events */
+      }
+
+      /* Modal */
+      .result-modal {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 200;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+
+      .result-modal.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .modal-content {
+        background: white;
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        width: 400px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        transform: scale(0.8);
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      .result-modal.visible .modal-content {
+        transform: scale(1);
+      }
+
+      .feedback-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 20px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+      }
+
+      .result-details {
+        font-size: 18px;
+        color: #555;
+        margin: 20px 0;
+        text-align: left;
+        padding: 0 40px;
+      }
+
+      .result-details p {
+        display: flex;
+        justify-content: space-between;
+        margin: 10px 0;
+      }
+
+      .val-real { color: #2196F3; font-weight: bold; }
+      .val-guess { color: #FF9800; font-weight: bold; }
+      .val-diff { color: #f44336; font-weight: bold; }
+
+      .score-display {
+        font-size: 36px;
+        font-weight: bold;
+        color: #4CAF50;
+        margin: 20px 0;
+      }
+
+      .next-btn {
+        background: #2196F3;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        font-size: 18px;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .next-btn:hover {
+        background: #1976D2;
+      }
+
+      .hidden { display: none; }
+
+    </style>
+  `,
+
+      state: {
+        currentQuestion: 0,
+        score: 0,
+        totalScore: 0,
+        angleValue: 45,
+        userGuess: 45,
+        isVerified: false,
+        angleSVGData: null,
+        angleImageSrc: null
+      },
+
+      init() {
+        // Render template
+        const container = document.getElementById('activity-2');
+        container.innerHTML = this.template;
+
+        // Get DOM references
+        this.dom = {
+          slider: document.getElementById('guess-slider-2'),
+          guessDisplay: document.getElementById('guess-value-2'),
+          mysteryContainer: document.getElementById('mystery-angle-container-2'),
+          angleDisplay: document.getElementById('angle-display-2'),
+          verifyBtn: document.getElementById('verify-btn-2'),
+          protractor: document.getElementById('protractor-2'),
+          resultModal: document.getElementById('result-modal-2'),
+          feedbackIcon: document.getElementById('feedback-icon-2'),
+          feedbackTitle: document.getElementById('feedback-title-2'),
+          nextBtn: document.getElementById('next-btn-2'),
+          realVal: document.getElementById('real-angle-2'),
+          guessVal: document.getElementById('user-guess-2'),
+          diffVal: document.getElementById('diff-val-2'),
+          scoreDisplay: document.getElementById('score-display-2')
+        };
+
+        // Bind interaction events
+        this.bindEvents();
+
+        // Load the first question
+        this.loadQuestion();
+      },
+
+      bindEvents() {
+        // 1. Slider events
+        this.dom.slider.addEventListener('input', (e) => {
+          this.state.userGuess = parseInt(e.target.value);
+          this.dom.guessDisplay.textContent = this.state.userGuess;
+        });
+
+        // 2. Verify button
+        this.dom.verifyBtn.addEventListener('click', () => {
+          this.handleVerify();
+        });
+
+        // 3. Drag source events (native HTML5 DnD, adapted to the component protocol)
+        this.dom.mysteryContainer.addEventListener('dragstart', (e) => {
+          if (!this.state.isVerified) {
+            e.preventDefault();
+            return;
+          }
+
+          // Play sound
+          if (window.gameEngine) window.gameEngine.playSound('click');
+
+          // Prepare data that matches the ItemData Protocol
+          const itemData = {
+            id: `angle-${Date.now()}`,
+            name: 'Mystery angle',
+            angle: this.state.angleValue,
+            image: this.state.angleImageSrc, // Important: pass the Data URI image
+            visual: {
+              domWidth: 200,
+              domHeight: 200
+            }
+          };
+
+          // Configure dataTransfer as required by the component
+          e.dataTransfer.setData('application/json', JSON.stringify(itemData));
+          e.dataTransfer.effectAllowed = 'copy';
+
+          // Drag visual feedback
+          // We could use a transparent image to hide the default drag preview and implement our own.
+          // For simplicity (and decent visuals), we keep the default semi-transparent snapshot.
+        });
+
+        // 4. Component events (core)
+        this.dom.protractor.addEventListener('change', (e) => {
+          // When the component state changes and currentItem exists, a measurement has occurred
+          if (e.detail.currentItem && !this.state.isMeasured) {
+            this.handleMeasurement(e.detail.value);
+          }
+        });
+
+        // 5. Next
+        this.dom.nextBtn.addEventListener('click', () => {
+          this.dom.resultModal.classList.remove('visible');
+          setTimeout(() => {
+            this.dom.resultModal.classList.add('hidden');
+            this.nextQuestion();
+          }, 300);
+        });
+      },
+
+      generateQuestion(index) {
+        if (this.config.questionType === 'random') {
+          // Generate a random integer between 10 and 170
+          const angle = Math.floor(Math.random() * 160) + 10;
+          return { angle: angle };
+        }
+        return { angle: 45 }; // Fallback
+      },
+
+      loadQuestion() {
+        const question = this.generateQuestion(this.state.currentQuestion);
+        this.state.angleValue = question.angle;
+        this.state.isVerified = false;
+        this.state.isMeasured = false;
+
+        // Reset UI
+        this.resetUI();
+
+        // Update progress
+        const progressEl = document.querySelector('#activity-2 .progress');
+        if (progressEl) {
+          progressEl.textContent = `${this.state.currentQuestion + 1}/${this.config.totalQuestions}`;
+        }
+
+        // Generate SVG artwork
+        this.renderAngleSVG(question.angle);
+      },
+
+      renderAngleSVG(angle) {
+        // Compute SVG geometry
+        const size = 200;
+        const center = { x: size / 2, y: size / 2 + 50 };
+        const r = 80;
+
+        // Base side (horizontal to the right)
+        const end1 = { x: center.x + r, y: center.y };
+
+        // Rotated side (SVG has y going down, so use negative angle)
+        const rad = angle * (Math.PI / 180);
+        const end2 = {
+          x: center.x + r * Math.cos(-rad), // Rotate counterclockwise
+          y: center.y + r * Math.sin(-rad)
+        };
+
+        // Draw SVG
+        const svgString = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+          </marker>
+        </defs>
+        <g stroke="#333" stroke-width="4" fill="none" stroke-linecap="round">
+          <!-- Vertex -->
+          <circle cx="${center.x}" cy="${center.y}" r="4" fill="#333" />
+          <!-- Side 1 -->
+          <line x1="${center.x}" y1="${center.y}" x2="${end1.x}" y2="${end1.y}" />
+          <!-- Side 2 -->
+          <line x1="${center.x}" y1="${center.y}" x2="${end2.x}" y2="${end2.y}" />
+          <!-- Angle arc (decorative only, no labels) -->
+          <path d="M${center.x + 30},${center.y} A30,30 0 0,0 ${center.x + 30 * Math.cos(-rad)},${center.y + 30 * Math.sin(-rad)}" stroke="#2196F3" stroke-width="2" stroke-dasharray="4,2"/>
+        </g>
+      </svg>
+    `;
+
+        this.dom.angleDisplay.innerHTML = svgString;
+
+        // Generate a Data URI for drag-and-drop (Item Data Protocol requirement)
+        // Important: the SVG must be encoded so it can be used as an <img src>
+        this.state.angleImageSrc = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
+      },
+
+      resetUI() {
+        this.state.userGuess = 45;
+        this.dom.slider.value = 45;
+        this.dom.slider.disabled = false;
+        this.dom.guessDisplay.textContent = "45";
+
+        this.dom.verifyBtn.disabled = false;
+  this.dom.verifyBtn.textContent = "Verify & measure";
+
+        this.dom.mysteryContainer.draggable = false;
+        this.dom.mysteryContainer.classList.remove('draggable-active');
+
+        // Reset the component
+        if (this.dom.protractor.reset) {
+          this.dom.protractor.reset();
+        }
+      },
+
+      handleVerify() {
+        this.state.isVerified = true;
+
+        // Lock the slider
+        this.dom.slider.disabled = true;
+        this.dom.verifyBtn.disabled = true;
+        this.dom.verifyBtn.textContent = "Drag the shape into the protractor";
+
+        // Enable dragging
+        this.dom.mysteryContainer.draggable = true;
+        this.dom.mysteryContainer.classList.add('draggable-active');
+
+        if (window.gameEngine) window.gameEngine.playSound('click');
+      },
+
+      handleMeasurement(measuredValue) {
+        this.state.isMeasured = true;
+
+        // Play success sound
+        if (window.gameEngine) window.gameEngine.playSound('success');
+
+        // Compute result
+        const diff = Math.abs(this.state.angleValue - this.state.userGuess);
+        let score = 0;
+        let feedbackType = 'wrong'; // visual icon type
+
+        if (diff <= 5) {
+          score = 100;
+          feedbackType = 'correct';
+        } else if (diff <= 15) {
+          score = 80;
+          feedbackType = 'correct';
+        } else if (diff <= 30) {
+          score = 60;
+          feedbackType = 'wrong';
+        } else {
+          score = 40;
+          feedbackType = 'wrong';
+        }
+
+        // Visual feedback: fly-in effect (simulated)
+        // Note: the component takes over on drop and shows the measured item;
+        // here we mainly display the result modal.
+
+        // Delay showing the modal slightly so the user can see the protractor result
+        setTimeout(() => {
+          this.showResult(score, diff, feedbackType);
+        }, 800);
+      },
+
+      showResult(score, diff, type) {
+        const assets = {
+          correct: './assets/icon_feedback_correct.png',
+          wrong: './assets/icon_feedback_wrong.png'
+        };
+
+        this.dom.feedbackIcon.style.backgroundImage = `url('${assets[type]}')`;
+  this.dom.feedbackTitle.textContent = score >= 80 ? "Awesome! Eagle eyes!" : (score >= 60 ? "Nice! Keep it up!" : "A bit off—try again! ");
+
+        this.dom.realVal.textContent = this.state.angleValue;
+        this.dom.guessVal.textContent = this.state.userGuess;
+        this.dom.diffVal.textContent = diff;
+  this.dom.scoreDisplay.textContent = `Score: ${score}`;
+
+        this.dom.resultModal.classList.remove('hidden');
+        // Force reflow to trigger transition
+        void this.dom.resultModal.offsetWidth;
+        this.dom.resultModal.classList.add('visible');
+      },
+
+      nextQuestion() {
+        this.state.currentQuestion++;
+        if (this.state.currentQuestion >= this.config.totalQuestions) {
+          // End logic: go to final summary (framework typically returns to home)
+          this.showFinalSummary();
+        } else {
+          this.loadQuestion();
+        }
+      },
+
+      showFinalSummary() {
+        alert("Challenge complete! Returning to home...");
+        // Assume ActivityManager exists
+        if (window.ActivityManager) {
+          window.ActivityManager.goHome();
+        } else {
+          location.reload();
+        }
+      },
+
+      destroy() {
+        // Cleanup event listeners, etc.
+        if (this.dom && this.dom.protractor) {
+          // The component has its own disconnectedCallback; no extra work needed here.
+        }
+      }
+    };
+    window.ACTIVITY_3 = {
+      // Question config
+      config: {
+        totalQuestions: 10,
+        questionType: "random", // random | preset
+        assets: {
+          feedback_icon_correct: "./assets/feedback_icon_correct.png",
+          decor_owl_character: "./assets/decor_owl_character.png",
+          feedback_icon_wrong: "./assets/feedback_icon_wrong.png",
+          background: "./assets/background (3).png",
+          icon_star_score: "./assets/icon_star_score.png",
+          icon_drag_handle: "./assets/icon_drag_handle.png"
+        }
+      },
+
+  // Internal state
+      state: {
+        currentQuestion: 0,
+        score: 0,
+        targetAngle: 0,
+        options: [], // [{id, angle, isCorrect, svgDataUrl}]
+        isAnswering: true
+      },
+
+      // HTML template
+      template: `
+    ${createActivityHeader('Find the Target Angle', '1/10')}
+    
+    <style>
+      #activity-3 {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: url('./assets/background (3).png') no-repeat center center;
+        background-size: cover;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        user-select: none;
+      }
+
+  /* Decorative elements */
+      .decor-owl {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        width: 180px;
+        height: auto;
+        z-index: 5;
+        pointer-events: none;
+      }
+
+  /* Top prompt area */
+      .question-prompt {
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 15px 40px;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        font-size: 28px;
+        color: #333;
+        font-weight: bold;
+        z-index: 50;
+        text-align: center;
+        border: 2px solid #2196F3;
+      }
+
+      .highlight-text {
+        color: #E91E63;
+        font-size: 40px;
+        margin: 0 8px;
+        font-weight: 800;
+      }
+      
+      .sub-prompt {
+        font-size: 18px;
+        color: #666;
+        margin-top: 10px;
+        font-weight: normal;
+        background: #e3f2fd;
+        padding: 5px 15px;
+        border-radius: 20px;
+      }
+
+  /* Protractor area */
+      .protractor-area {
+        position: absolute;
+        top: 150px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 600px;
+        height: 380px;
+        z-index: 10;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(255,255,255,0.4);
+        border-radius: 30px;
+        border: 2px dashed #bbb;
+      }
+      
+      .area-label {
+        position: absolute;
+        top: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #2196F3;
+        color: white;
+        padding: 5px 20px;
+        border-radius: 15px;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      }
+
+  /* Bottom options area */
+      .options-container {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 30px;
+        z-index: 20;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 20px;
+        backdrop-filter: blur(5px);
+      }
+
+  /* Option cards */
+      .option-card {
+        position: relative;
+        width: 160px;
+        height: 160px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        border: 3px solid transparent;
+        cursor: grab;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+
+      .option-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 25px rgba(0,0,0,0.15);
+        border-color: #2196F3;
+      }
+
+      .option-card:active {
+        cursor: grabbing;
+        transform: scale(0.98);
+      }
+
+      .option-card.dragging {
+        opacity: 0.5;
+        border: 2px dashed #999;
+      }
+
+  /* Submit/selection mode */
+      .option-card.selected {
+        border-color: #4CAF50;
+        background-color: #E8F5E9;
+      }
+      
+      .option-card.wrong {
+        border-color: #F44336;
+        animation: shake 0.5s;
+      }
+
+      .card-drag-hint {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 24px;
+        opacity: 0.3;
+        pointer-events: none;
+      }
+
+      .card-label {
+        margin-top: 10px;
+        font-size: 16px;
+        color: #666;
+        pointer-events: none;
+      }
+
+      /* Dynamic SVG angle styles */
+      .angle-svg {
+        width: 120px;
+        height: 120px;
+        pointer-events: none; /* Let drag events be handled by the parent container */
+      }
+      
+      .angle-path {
+        fill: none;
+        stroke: #333;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      
+      .angle-arc {
+        fill: rgba(33, 150, 243, 0.2);
+        stroke: #2196F3;
+        stroke-width: 2;
+        stroke-dasharray: 4,2;
+      }
+
+  /* Next button */
+      .next-btn {
+        position: absolute;
+        bottom: 30px;
+        right: 30px;
+        padding: 12px 30px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4);
+        z-index: 100;
+        display: none;
+        transition: transform 0.2s;
+      }
+      
+      .next-btn:hover {
+        transform: scale(1.05);
+        background: #43A047;
+      }
+
+  /* Animations */
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+      }
+
+  /* Feedback overlay */
+      .feedback-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 200;
+      }
+      
+      .feedback-overlay.show {
+        opacity: 1;
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      .feedback-icon {
+        width: 150px;
+        filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2));
+      }
+
+      @keyframes popIn {
+        from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
+    </style>
+
+  <!-- Game area -->
+    <div class="activity-content">
+      <img src="./assets/decor_owl_character.png" class="decor-owl" alt="Owl">
+      
+      <div id="prompt-3" class="question-prompt">
+        <div>Find the <span id="target-angle-text-3" class="highlight-text">60°</span> angle</div>
+        <div class="sub-prompt">👉 Step 1: Drag a card into the protractor to measure &nbsp;&nbsp; 👉 Step 2: Click the correct card to submit</div>
+      </div>
+
+      <div class="protractor-area">
+        <div class="area-label">Measurement workspace</div>
+        <!-- Core component: protractor -->
+        <protractor-component id="protractor-3" radius="160" width="500"></protractor-component>
+      </div>
+
+      <div id="options-container-3" class="options-container">
+        <!-- Options will be generated dynamically by JS -->
+      </div>
+    </div>
+
+    <div id="feedback-3" class="feedback-overlay">
+      <img id="feedback-img-3" class="feedback-icon" src="" alt="feedback">
+    </div>
+
+    <button id="next-btn-3" class="next-btn">Next ➜</button>
+  `,
+
+      /**
+       * Initialize activity
+       */
+      init() {
+        // 1. Render template
+        const container = document.getElementById('activity-3');
+        container.innerHTML = this.template;
+
+        // 2. Get component instance
+        this.protractor = document.getElementById('protractor-3');
+
+        // 3. Bind component events
+        // The protractor component triggers a change event on drop; use it for sound/logging.
+        this.protractor.addEventListener('change', (e) => {
+          // Fires when the measured value changes
+          if (e.detail.value) {
+            console.log('Current measured angle:', e.detail.value);
+            // Optional: play a measurement sound here
+            if (window.gameEngine) window.gameEngine.playSound('click');
+          }
+        });
+
+        // 4. Bind next button
+        document.getElementById('next-btn-3').addEventListener('click', () => {
+          this.nextQuestion();
+        });
+
+        // 5. Start the first question
+        this.loadQuestion();
+      },
+
+      /**
+       * Load current question
+       */
+      loadQuestion() {
+        this.state.isAnswering = true;
+        document.getElementById('next-btn-3').style.display = 'none';
+
+  // Reset protractor
+        if (this.protractor) {
+          this.protractor.reset();
+        }
+
+  // Update header progress
+        const progressText = `${this.state.currentQuestion + 1}/${this.config.totalQuestions}`;
+
+        // Limit scope to Activity 3 header
+        const progressEl = document.querySelector('#activity-3 .activity-header .progress');
+        if (progressEl) progressEl.textContent = progressText;
+
+        // Generate question data
+        this.generateQuestion();
+
+        // Render question
+        this.renderQuestion();
+      },
+
+      /**
+       * Question generation logic
+       */
+      generateQuestion() {
+        // 1. Generate target angle (20°–160°, multiples of 5)
+        const target = Math.floor(Math.random() * 28 + 4) * 5;
+        this.state.targetAngle = target;
+
+        // 2. Generate distractors (target +/- 20–40)
+        const options = [];
+
+        // Correct answer
+        options.push({
+          id: `opt-${Date.now()}-correct`,
+          angle: target,
+          isCorrect: true
+        });
+
+        // Distractor logic
+        while (options.length < 3) {
+          const diff = (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 3 + 2) * 10); // +/- 20, 30, 40
+          const fakeAngle = target + diff;
+
+          // Validate (10°–170° and unique)
+          const isUnique = !options.some(o => o.angle === fakeAngle);
+          if (fakeAngle > 10 && fakeAngle < 170 && isUnique) {
+            options.push({
+              id: `opt-${Date.now()}-${options.length}`,
+              angle: fakeAngle,
+              isCorrect: false
+            });
+          }
+        }
+
+        // Shuffle
+        this.state.options = options.sort(() => Math.random() - 0.5);
+      },
+
+      /**
+       * Render question and options
+       */
+      renderQuestion() {
+        // Update prompt
+        document.getElementById('target-angle-text-3').textContent = `${this.state.targetAngle}°`;
+
+        // Render options
+        const container = document.getElementById('options-container-3');
+        container.innerHTML = '';
+
+        this.state.options.forEach(opt => {
+          // 1. Generate SVG artwork
+          const svgContent = this.createAngleSVG(opt.angle);
+
+          // 2. Convert SVG to a Data URI (component image protocol)
+          // Use encodeURIComponent to ensure the SVG is safely encoded for use in a data: URL.
+          const svgDataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgContent);
+          opt.svgDataUrl = svgDataUrl; // Keep as backup
+
+          // 3. Create DOM elements
+          const card = document.createElement('div');
+          card.className = 'option-card';
+          card.id = opt.id;
+          // Enable dragging
+          card.setAttribute('draggable', 'true');
+
+          card.innerHTML = `
+        <img src="${this.config.assets.icon_drag_handle}" class="card-drag-hint" alt="drag">
+        ${svgContent}
+        <div class="card-label" style="font-weight:bold; color:#2196F3;">✋ Drag to measure / 👆 Click to select</div>
+      `;
+
+          // 4. Bind interactions
+
+          // A. Click to submit the answer
+          card.addEventListener('click', () => {
+            if (this.state.isAnswering) {
+              this.checkAnswer(opt, card);
+            }
+          });
+
+          // B. Drag start - must set e.dataTransfer to work with ProtractorComponent
+          card.addEventListener('dragstart', (e) => {
+            card.classList.add('dragging');
+
+            // Build an ItemDataProtocol-compatible payload
+            const itemData = {
+              id: opt.id,
+              name: `Angle ${opt.angle}°`,
+              angle: opt.angle,
+              image: opt.svgDataUrl, // Key: pass the Data URL so the component can display this image
+              visual: { domWidth: 120, domHeight: 120 }
+            };
+
+            // Must set 'application/json'
+            e.dataTransfer.setData('application/json', JSON.stringify(itemData));
+            e.dataTransfer.effectAllowed = 'copy';
+          });
+
+          card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+          });
+
+          container.appendChild(card);
+        });
+      },
+
+      /**
+       * Helper: generate an angle SVG string
+       */
+      createAngleSVG(angle) {
+        // Simple geometry: the vertex is at the bottom center with two rays
+        // Canvas: 120x120
+        const cx = 60, cy = 100;
+        const r = 80;
+
+        // Baseline (0°, to the right)
+        // In SVG coordinates, y increases downward, so we apply a transform.
+        // Baseline: (cx, cy) -> (cx + r, cy)
+        const x1 = cx + r;
+        const y1 = cy;
+
+  // Target ray (rotate counterclockwise by angle degrees)
+  // In SVG coordinates, counterclockwise rotation decreases y; Math.cos/sin assume Cartesian.
+  // Target point: cx + r*cos(-angle), cy + r*sin(-angle)
+        const rad = -angle * (Math.PI / 180);
+        const x2 = cx + r * Math.cos(rad);
+        const y2 = cy + r * Math.sin(rad);
+
+  // Angle arc (radius 30)
+        const arcR = 30;
+        const arcX = cx + arcR * Math.cos(rad);
+        const arcY = cy + arcR * Math.sin(rad);
+  const largeArcFlag = 0; // We constrain angles to < 180
+  const sweepFlag = 0; // Counterclockwise
+
+        return `
+      <svg class="angle-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Angle sector fill -->
+        <path d="M ${cx} ${cy} L ${cx + arcR} ${cy} A ${arcR} ${arcR} 0 ${largeArcFlag} ${sweepFlag} ${arcX} ${arcY} Z" 
+              fill="rgba(33, 150, 243, 0.1)" />
+    <!-- Arc -->
+        <path d="M ${cx + arcR} ${cy} A ${arcR} ${arcR} 0 ${largeArcFlag} ${sweepFlag} ${arcX} ${arcY}" 
+              class="angle-arc" />
+    <!-- Ray 1 -->
+        <line x1="${cx}" y1="${cy}" x2="${x1}" y2="${y1}" class="angle-path" />
+    <!-- Ray 2 -->
+        <line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" class="angle-path" />
+    <!-- Vertex -->
+        <circle cx="${cx}" cy="${cy}" r="4" fill="#333" />
+      </svg>
+    `;
+      },
+
+      /**
+       * Check the answer
+       */
+      checkAnswer(selectedOpt, cardEl) {
+        // If the protractor is still measuring this option, we keep it to maintain visual continuity.
+
+        if (selectedOpt.isCorrect) {
+          // Correct
+          this.state.isAnswering = false;
+          this.state.score += 10;
+          cardEl.classList.add('selected');
+          this.showFeedback('correct');
+          if (window.gameEngine) window.gameEngine.playSound('success');
+
+          // Show next button
+          document.getElementById('next-btn-3').style.display = 'block';
+        } else {
+          // Wrong
+          cardEl.classList.add('wrong');
+          this.showFeedback('wrong');
+          if (window.gameEngine) window.gameEngine.playSound('error');
+
+          // Remove wrong style
+          setTimeout(() => {
+            cardEl.classList.remove('wrong');
+          }, 500);
+        }
+      },
+
+      /**
+       * Show feedback
+       */
+      showFeedback(type) {
+        const overlay = document.getElementById('feedback-3');
+        const img = document.getElementById('feedback-img-3');
+
+        if (type === 'correct') {
+          img.src = this.config.assets.feedback_icon_correct;
+        } else {
+          img.src = this.config.assets.feedback_icon_wrong;
+        }
+
+        overlay.classList.add('show');
+
+        // Wrong feedback auto-hides; correct feedback stays until Next is clicked
+        if (type === 'wrong') {
+          setTimeout(() => {
+            overlay.classList.remove('show');
+          }, 1000);
+        }
+      },
+
+      /**
+       * Next question
+       */
+      nextQuestion() {
+        document.getElementById('feedback-3').classList.remove('show');
+
+        if (this.state.currentQuestion < this.config.totalQuestions - 1) {
+          this.state.currentQuestion++;
+          this.loadQuestion();
+        } else {
+          this.showResult();
+        }
+      },
+
+      /**
+       * Final results
+       */
+      showResult() {
+        const container = document.getElementById('activity-3');
+        container.innerHTML = `
+      ${createActivityHeader('Find the Target Angle', 'Complete')}
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; background:url('${this.config.assets.background}')">
+        <div style="background:white; padding:40px; border-radius:20px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+          <img src="${this.config.assets.decor_owl_character}" style="width:120px; margin-bottom:20px;">
+          <h2 style="color:#333; font-size:32px; margin-bottom:10px;">Challenge complete!</h2>
+          <p style="font-size:24px; color:#666;">Your score: <span style="color:#E91E63; font-weight:bold;">${this.state.score}</span></p>
+          <button onclick="ActivityManager.goHome()" style="margin-top:30px; padding:12px 40px; background:#2196F3; color:white; border:none; border-radius:30px; font-size:20px; cursor:pointer;">Back to Home</button>
+        </div>
+      </div>
+    `;
+      },
+
+      /**
+       * Destroy
+       */
+      destroy() {
+        // Cleanup
+        this.protractor = null;
+        this.state.options = [];
+      }
+    };
+
+    // Start
+    document.addEventListener('DOMContentLoaded', () => {
+      ActivityManager.show(0);
+    });
+  </script>
+</body>
+
+</html>

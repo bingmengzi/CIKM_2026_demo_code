@@ -1,0 +1,2260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parallelogram Transformation Magic</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f0f4f8;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+
+    #app-container {
+      width: 1920px;
+      height: 1080px;
+      background: #fff;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform-origin: top left;
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .page.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+  /* Shared component styles */
+    .activity-header {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      z-index: 10;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 2px solid white;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 18px;
+    }
+
+    .back-btn:hover {
+      background: white;
+      color: #667eea;
+    }
+
+    .progress {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .activity-content {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: auto;
+    }
+
+    .activity-footer {
+      height: 80px;
+      min-height: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .next-btn {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      border: none;
+      color: white;
+      padding: 15px 50px;
+      border-radius: 30px;
+      font-size: 22px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .next-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .next-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+  /* Feedback animations */
+    @keyframes correct-pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    @keyframes wrong-shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-10px);
+      }
+
+      75% {
+        transform: translateX(10px);
+      }
+    }
+
+    .feedback-correct {
+      animation: correct-pulse 0.5s;
+    }
+
+    .feedback-wrong {
+      animation: wrong-shake 0.5s;
+    }
+  </style>
+  <!-- Three.js for 3D Geometry Activities -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+  <div id="app-container">
+    <div id="home-page" class="page active"></div>
+    <div id="activity-1" class="page"></div>
+    <div id="activity-2" class="page"></div>
+    <div id="activity-3" class="page"></div>
+  </div>
+  <script>
+  // ========== TeachingGameEngine (drag-and-drop engine) ==========
+    class TeachingGameEngine {
+      constructor() {
+        this.draggables = [];
+        this.dropZones = [];
+        this.events = {};
+        this.isMobile = 'ontouchstart' in window;
+        this._initStyle();
+      }
+      makeDraggable(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { revert: true, targetGroup: 'default', ...options };
+        const offsetParent = element.offsetParent || document.body;
+        const parentRect = offsetParent.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(element);
+        if (computedStyle.position === 'static') {
+          element.style.position = 'absolute';
+          element.style.left = (rect.left - parentRect.left) + 'px';
+          element.style.top = (rect.top - parentRect.top) + 'px';
+        }
+        config.initialX = parseFloat(element.style.left) || 0;
+        config.initialY = parseFloat(element.style.top) || 0;
+        config.zIndex = computedStyle.zIndex;
+        this._bindDragEvents(element, config);
+        element.style.cursor = 'grab';
+        element.classList.add('tge-draggable');
+      }
+      makeDropZone(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { group: 'default', accept: null, ...options };
+        element.classList.add('tge-dropzone');
+        this.dropZones.push({ element, config });
+      }
+      playSound(type) { console.log(`[Audio] Playing ${type} sound`); }
+      showFeedback(el, type = 'pulse') {
+        const element = this._getElement(el);
+        if (!element) return;
+        element.classList.remove('tge-anim-shake', 'tge-anim-pulse');
+        void element.offsetWidth;
+        element.classList.add(`tge-anim-${type}`);
+        setTimeout(() => element.classList.remove(`tge-anim-${type}`), 800);
+      }
+      on(eventName, callback) {
+        if (!this.events[eventName]) this.events[eventName] = [];
+        this.events[eventName].push(callback);
+      }
+      _getElement(el) { return typeof el === 'string' ? document.getElementById(el) : el; }
+      _bindDragEvents(element, config) {
+        let isDragging = false, startX, startY, initialLeft, initialTop;
+        const self = this;
+        const startHandler = (e) => {
+          e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          isDragging = true; startX = point.clientX; startY = point.clientY;
+          initialLeft = parseFloat(element.style.left) || 0;
+          initialTop = parseFloat(element.style.top) || 0;
+          element.style.zIndex = 1000; element.style.cursor = 'grabbing';
+          element.classList.add('tge-dragging');
+          self._emit('dragStart', { element });
+        };
+        const moveHandler = (e) => {
+          if (!isDragging) return; e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          element.style.left = `${initialLeft + point.clientX - startX}px`;
+          element.style.top = `${initialTop + point.clientY - startY}px`;
+          self._checkDropZones(element, config);
+        };
+        const endHandler = (e) => {
+          if (!isDragging) return; isDragging = false;
+          element.style.zIndex = config.zIndex; element.style.cursor = 'grab';
+          element.classList.remove('tge-dragging');
+          const dropZone = self._checkDropZones(element, config);
+          if (dropZone) { self._emit('drop', { source: element, target: dropZone.element }); self._snapTo(element, dropZone.element); }
+          else { if (config.revert) self._revert(element, config); self._emit('dragEnd', { element, success: false }); }
+          self.dropZones.forEach(z => z.element.classList.remove('tge-drag-over'));
+        };
+        if (this.isMobile) { element.addEventListener('touchstart', startHandler, { passive: false }); window.addEventListener('touchmove', moveHandler, { passive: false }); window.addEventListener('touchend', endHandler); }
+        else { element.addEventListener('mousedown', startHandler); window.addEventListener('mousemove', moveHandler); window.addEventListener('mouseup', endHandler); }
+      }
+      _checkDropZones(dragEl, dragConfig) {
+        let bestZone = null, maxArea = 0; const dragRect = dragEl.getBoundingClientRect();
+        this.dropZones.forEach(zone => {
+          if (zone.config.group !== dragConfig.targetGroup) return;
+          const zoneRect = zone.element.getBoundingClientRect();
+          const overlap = !(dragRect.right < zoneRect.left || dragRect.left > zoneRect.right || dragRect.bottom < zoneRect.top || dragRect.top > zoneRect.bottom);
+          if (overlap) { const x_overlap = Math.max(0, Math.min(dragRect.right, zoneRect.right) - Math.max(dragRect.left, zoneRect.left)); const y_overlap = Math.max(0, Math.min(dragRect.bottom, zoneRect.bottom) - Math.max(dragRect.top, zoneRect.top)); const area = x_overlap * y_overlap; if (area > maxArea) { maxArea = area; bestZone = zone; } }
+        });
+        this.dropZones.forEach(z => z === bestZone ? z.element.classList.add('tge-drag-over') : z.element.classList.remove('tge-drag-over'));
+        return bestZone;
+      }
+      _snapTo(dragEl, targetEl) { const offsetParent = dragEl.offsetParent || document.body; const parentRect = offsetParent.getBoundingClientRect(); const targetRect = targetEl.getBoundingClientRect(); const dragRect = dragEl.getBoundingClientRect(); const centerX = targetRect.left + targetRect.width / 2 - dragRect.width / 2 - parentRect.left; const centerY = targetRect.top + targetRect.height / 2 - dragRect.height / 2 - parentRect.top; dragEl.style.transition = 'all 0.3s ease-out'; dragEl.style.left = centerX + 'px'; dragEl.style.top = centerY + 'px'; setTimeout(() => dragEl.style.transition = '', 300); }
+      _revert(element, config) { element.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; element.style.left = config.initialX + 'px'; element.style.top = config.initialY + 'px'; setTimeout(() => element.style.transition = '', 300); }
+      _emit(name, data) { if (this.events[name]) this.events[name].forEach(cb => cb(data)); }
+      _initStyle() { if (document.getElementById('tge-style')) return; const css = `.tge-draggable { touch-action: none; user-select: none; } .tge-drag-over { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); transform: scale(1.02); transition: transform 0.2s; } .tge-anim-shake { animation: tge-shake 0.5s; } .tge-anim-pulse { animation: tge-pulse 0.5s; } @keyframes tge-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } } @keyframes tge-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }`; const style = document.createElement('style'); style.id = 'tge-style'; style.textContent = css; document.head.appendChild(style); }
+      static Draggable = class {
+        constructor(element, options = {}) { this.element = typeof element === 'string' ? document.getElementById(element) : element; this.options = { container: document.body, ...options }; this.isDragging = false; this.isMobile = 'ontouchstart' in window; this._bind(); }
+        _bind() {
+          const el = this.element; let startX, startY, elX, elY;
+          const start = (e) => { e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; this.isDragging = true; startX = pt.clientX; startY = pt.clientY; elX = parseFloat(el.style.left) || 0; elY = parseFloat(el.style.top) || 0; if (this.options.onDragStart) this.options.onDragStart(e); };
+          const move = (e) => { if (!this.isDragging) return; e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; el.style.left = (elX + pt.clientX - startX) + 'px'; el.style.top = (elY + pt.clientY - startY) + 'px'; };
+          const end = (e) => { if (!this.isDragging) return; this.isDragging = false; if (this.options.onDragEnd) this.options.onDragEnd(e); };
+          if (this.isMobile) { el.addEventListener('touchstart', start, { passive: false }); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end); }
+          else { el.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end); }
+        }
+        destroy() { }
+      };
+    }
+    window.TeachingGameEngine = TeachingGameEngine;
+    window.gameEngine = new TeachingGameEngine();
+
+  // Responsive scaling
+    function resizeApp() {
+      const c = document.getElementById('app-container');
+      const scaleX = window.innerWidth / 1920;
+      const scaleY = window.innerHeight / 1080;
+      const scale = Math.min(scaleX, scaleY);
+  // Compute scaled dimensions
+      const scaledWidth = 1920 * scale;
+      const scaledHeight = 1080 * scale;
+  // Compute centering offsets
+      const offsetX = (window.innerWidth - scaledWidth) / 2;
+      const offsetY = (window.innerHeight - scaledHeight) / 2;
+  // Apply transform: translate to center first, then scale
+      c.style.left = offsetX + 'px';
+      c.style.top = offsetY + 'px';
+      c.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', resizeApp);
+    resizeApp();
+
+  // Activity manager
+    const ActivityManager = {
+      current: null,
+  // Components to wait for (filled by component registration)
+      _requiredComponents: [],
+
+      async show(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        if (this.current && window[`ACTIVITY_${this.current}`]?.destroy) {
+          window[`ACTIVITY_${this.current}`].destroy();
+        }
+        if (id === 0) {
+          document.getElementById('home-page').classList.add('active');
+          if (window.HOME_PAGE) HOME_PAGE.init();
+          this.current = null;
+        } else {
+          document.getElementById(`activity-${id}`).classList.add('active');
+          const activity = window[`ACTIVITY_${id}`];
+          if (activity) {
+            // Wait for all components to finish registering
+            await this._waitForComponents();
+            activity.init();
+          }
+          this.current = id;
+        }
+      },
+
+  // Wait for all registered components to be ready
+      async _waitForComponents() {
+        if (this._requiredComponents.length === 0) return;
+        const promises = this._requiredComponents.map(name =>
+          customElements.whenDefined(name).catch(() => { })
+        );
+        await Promise.all(promises);
+      },
+
+  // Register a component to wait for (called by component scripts)
+      registerComponent(tagName) {
+        if (!this._requiredComponents.includes(tagName)) {
+          this._requiredComponents.push(tagName);
+        }
+      },
+
+      goHome() { this.show(0); }
+    };
+  window.ActivityManager = ActivityManager;  // Expose on window for LLM-generated code to use
+
+  // Utility helpers
+    function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function playSound(type) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        if (type === 'correct') {
+          osc.frequency.setValueAtTime(523, ctx.currentTime);
+          osc.frequency.setValueAtTime(784, ctx.currentTime + 0.15);
+        } else {
+          osc.frequency.setValueAtTime(200, ctx.currentTime);
+        }
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch (e) { }
+    }
+
+    /**
+     * Create an activity header (includes a Home button)
+     * @param {string} title - Activity title
+     * @param {string} progressText - Optional progress text, e.g. "1/5"
+     * @returns {string} HTML string
+     */
+    function createActivityHeader(title, progressText = '') {
+      return `
+        <div class="activity-header">
+          <button class="back-btn" onclick="ActivityManager.goHome()">🏠 Home</button>
+          <h2 style="font-size: 28px; margin: 0;">${title}</h2>
+          <div class="progress">${progressText}</div>
+        </div>
+      `;
+    }
+    window.createActivityHeader = createActivityHeader;
+
+    // ========== 3D geometry helper (built-in) ==========
+    // For 3D-geometry activities. Supports: cuboid, cube, sphere, cylinder, cone, frustum, prism, pyramid
+    const Geometry3DHelper = {
+      // Supported types and default parameters
+      TYPES: {
+        cuboid: { l: 4, w: 6, h: 3 },
+        cube: { size: 4 },
+        sphere: { radius: 3 },
+        cylinder: { radiusTop: 2, radiusBottom: 2, height: 5 },
+        cone: { radius: 2, height: 5 },
+        frustum: { radiusTop: 1, radiusBottom: 2.5, height: 4 },
+        prism: { sides: 6, radius: 2, height: 4 },
+        pyramid: { sides: 4, radius: 2, height: 5 }
+      },
+
+  /**
+   * Create a 3D geometry renderer
+   * @param {HTMLElement} container - Container element
+   * @param {string} type - Type: cuboid/cube/sphere/cylinder/cone/frustum/prism/pyramid
+   * @param {object} params - Parameter object
+   * @param {object} options - Optional config { autoRotate, showEdges }
+   * @returns {object} Controller { updateParams, setType, dispose }
+   */
+      create(container, type = 'cuboid', params = null, options = {}) {
+        const self = {
+          scene: null, camera: null, renderer: null,
+          mesh: null, edges: null, edgeLines: null, geometry: null,
+          currentType: type,
+          currentParams: params || { ...this.TYPES[type] },
+          options: { autoRotate: true, showEdges: true, ...options },
+          boxMaterials: null
+        };
+
+  // Initialize scene
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 400;
+
+        self.scene = new THREE.Scene();
+        self.scene.background = new THREE.Color(0xe8f4f8);
+
+        self.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+        self.camera.position.set(12, 9, 15);
+        self.camera.lookAt(0, 0, 0);
+
+        self.renderer = new THREE.WebGLRenderer({ antialias: true });
+        self.renderer.setSize(width, height);
+        self.renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(self.renderer.domElement);
+
+  // Lighting
+        self.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        self.scene.add(dirLight);
+
+  // Materials
+        self.boxMaterials = [
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db })
+        ];
+
+  // Create geometry
+        const createGeometry = () => {
+          if (self.mesh) { self.scene.remove(self.mesh); self.geometry.dispose(); }
+          if (self.edgeLines) { self.scene.remove(self.edgeLines); self.edges.dispose(); }
+
+          const p = self.currentParams;
+          switch (self.currentType) {
+            case 'cube': self.geometry = new THREE.BoxGeometry(p.size, p.size, p.size); break;
+            case 'cuboid': self.geometry = new THREE.BoxGeometry(p.w, p.h, p.l); break;
+            case 'sphere': self.geometry = new THREE.SphereGeometry(p.radius, 32, 24); break;
+            case 'cylinder': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'cone': self.geometry = new THREE.ConeGeometry(p.radius, p.height, 32); break;
+            case 'frustum': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'prism': self.geometry = new THREE.CylinderGeometry(p.radius, p.radius, p.height, p.sides); break;
+            case 'pyramid': self.geometry = new THREE.ConeGeometry(p.radius, p.height, p.sides); self.geometry.rotateY(Math.PI / p.sides); break;
+            default: self.geometry = new THREE.BoxGeometry(3, 3, 3);
+          }
+
+          const mat = (self.currentType === 'cuboid' || self.currentType === 'cube') ? self.boxMaterials : new THREE.MeshLambertMaterial({ color: 0x3498db });
+          self.mesh = new THREE.Mesh(self.geometry, mat);
+          self.scene.add(self.mesh);
+
+          if (self.options.showEdges) {
+            self.edges = new THREE.EdgesGeometry(self.geometry, 15);
+            self.edgeLines = new THREE.LineSegments(self.edges, new THREE.LineBasicMaterial({ color: 0x333333 }));
+            self.scene.add(self.edgeLines);
+          }
+        };
+        createGeometry();
+
+  // Animation loop
+        let animId;
+        const animate = () => {
+          animId = requestAnimationFrame(animate);
+          if (self.options.autoRotate && self.mesh) {
+            self.mesh.rotation.y += 0.005;
+            if (self.edgeLines) self.edgeLines.rotation.y += 0.005;
+          }
+          self.renderer.render(self.scene, self.camera);
+        };
+        animate();
+
+  // Return controller
+        return {
+          updateParams(newParams) {
+            self.currentParams = { ...self.currentParams, ...newParams };
+            createGeometry();
+          },
+          setType(newType, newParams) {
+            self.currentType = newType;
+            self.currentParams = newParams || { ...Geometry3DHelper.TYPES[newType] };
+            createGeometry();
+          },
+          isCube() {
+            if (self.currentType === 'cube') return true;
+            if (self.currentType === 'cuboid') {
+              const { l, w, h } = self.currentParams;
+              return l === w && w === h;
+            }
+            return false;
+          },
+          dispose() {
+            cancelAnimationFrame(animId);
+            if (self.geometry) self.geometry.dispose();
+            if (self.edges) self.edges.dispose();
+            self.boxMaterials.forEach(m => m.dispose());
+            self.renderer.dispose();
+            const canvas = self.renderer.domElement;
+            if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+          }
+        };
+      }
+    };
+
+  // ========== Area for LLM-generated code ==========
+    window.HOME_PAGE = {
+      template: `
+    <style>
+  @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap');
+
+      :root {
+        --card-bg: rgba(255, 255, 255, 0.9);
+        --primary-color: #6C5CE7;
+        --hover-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      }
+
+      .home-container {
+        width: 100%;
+        height: 100%;
+        background: url('./assets/background.png') no-repeat center center;
+        background-size: cover;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Noto Sans SC', sans-serif;
+        overflow: hidden;
+        position: relative;
+      }
+
+  /* Overlay to improve text readability */
+      .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.3) 100%);
+        pointer-events: none;
+      }
+
+      .content-wrapper {
+        z-index: 2;
+        text-align: center;
+        width: 100%;
+        max-width: 1400px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .main-title {
+        font-family: 'Ma Shan Zheng', cursive;
+        font-size: 86px;
+        color: #fff;
+        text-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 30px rgba(162, 155, 254, 0.6);
+        margin: 0;
+        letter-spacing: 4px;
+        animation: slideDown 1s ease-out;
+      }
+
+      .sub-title {
+        font-size: 32px;
+        color: #dfe6e9;
+        margin-top: 10px;
+        margin-bottom: 70px;
+        font-weight: 300;
+        background-color: rgba(0,0,0,0.2);
+        padding: 10px 30px;
+        border-radius: 50px;
+        backdrop-filter: blur(5px);
+        animation: fadeIn 1.5s ease-out;
+      }
+
+      .cards-container {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        width: 100%;
+        padding: 0 20px;
+        animation: slideUp 1s ease-out 0.3s backwards;
+      }
+
+      .activity-card {
+        background: var(--card-bg);
+        width: 360px;
+        height: 420px;
+        border-radius: 24px;
+        padding: 30px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        border: 4px solid transparent;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+      }
+
+      .activity-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 8px;
+        background: linear-gradient(90deg, #a29bfe, #6c5ce7);
+      }
+
+      .activity-card:hover {
+        transform: translateY(-15px) scale(1.02);
+        box-shadow: var(--hover-shadow);
+        border-color: #a29bfe;
+      }
+
+      .card-icon {
+        font-size: 60px;
+        margin-bottom: 20px;
+        background: #f1f2f6;
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.3s ease;
+      }
+
+      .activity-card:hover .card-icon {
+        transform: rotate(15deg) scale(1.1);
+        background: #dfe6e9;
+      }
+
+      .card-title {
+        font-size: 28px;
+        color: #2d3436;
+        margin: 10px 0;
+        font-weight: bold;
+      }
+
+      .card-desc {
+        font-size: 18px;
+        color: #636e72;
+        line-height: 1.6;
+        text-align: center;
+        flex-grow: 1;
+      }
+
+      .play-btn {
+        margin-top: 20px;
+        padding: 12px 40px;
+        background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+        color: white;
+        border-radius: 30px;
+        font-weight: bold;
+        font-size: 18px;
+        border: none;
+        transition: width 0.3s;
+      }
+
+      .activity-card:hover .play-btn {
+        background: linear-gradient(135deg, #5649c0, #8e7ce6);
+        box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4);
+      }
+
+      @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-50px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateY(50px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+    </style>
+
+    <div class="home-container">
+      <div class="overlay"></div>
+      
+      <div class="content-wrapper">
+  <h1 class="main-title">Parallelogram Transformation Magic</h1>
+  <div class="sub-title">✨ Discover how the area formula is born ✨</div>
+
+        <div class="cards-container">
+          
+          <!-- Card 1 -->
+          <div class="activity-card" data-id="1">
+            <div class="card-icon">✂️</div>
+            <h3 class="card-title">Magic Cut-and-Rearrange</h3>
+            <p class="card-desc">Drag the slider to cut a triangle along the height and move it to the other side. Watch how the shape changes.</p>
+            <button class="play-btn">Start Exploring</button>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="activity-card" data-id="2">
+            <div class="card-icon">📏</div>
+            <h3 class="card-title">Find the Matching Height</h3>
+            <p class="card-desc">A base of the parallelogram is highlighted. Click the correct perpendicular segment (the height).</p>
+            <button class="play-btn">Start Challenge</button>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="activity-card" data-id="3">
+            <div class="card-icon">🧩</div>
+            <h3 class="card-title">Area Matching Game</h3>
+            <p class="card-desc">Compute the area from the given measurements. Drag the correct area card into the shape.</p>
+            <button class="play-btn">Enter Game</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `,
+      init() {
+  // Render HTML
+        document.getElementById('home-page').innerHTML = this.template;
+
+  // Bind click handlers
+        const cards = document.querySelectorAll('.activity-card');
+        cards.forEach(card => {
+          card.addEventListener('click', () => {
+            const id = parseInt(card.getAttribute('data-id'), 10);
+            // Use the framework method to switch pages
+            if (id) {
+              ActivityManager.show(id);
+            }
+          });
+        });
+      }
+    };
+    window.ACTIVITY_1 = {
+      config: {
+        totalQuestions: 10,
+        questionType: "random",
+        assets: {
+          icon_height: "./assets/icon_height_indicator.png",
+          deco_circle: "./assets/deco_char_circle.png",
+          scissors: "./assets/slider_handle_scissors.png",
+          ruler: "./assets/icon_ruler.png"
+        }
+      },
+
+      state: {
+        currentQuestion: 0,
+        isComplete: false,
+        params: { base: 200, height: 150, slant: 50 },
+        progress: 0
+      },
+
+      template: `
+  ${createActivityHeader('Magic Cut-and-Rearrange', '1/10')}
+    
+    <style>
+      #activity-1 .activity-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(180deg, #f0f4f8 0%, #ffffff 100%);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+  /* Grid background */
+      #activity-1 .grid-bg {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-image: 
+          linear-gradient(#e5e9f0 1px, transparent 1px),
+          linear-gradient(90deg, #e5e9f0 1px, transparent 1px);
+        background-size: 40px 40px;
+        z-index: 1;
+      }
+
+  /* Drawing area */
+      #activity-1 .canvas-container {
+        position: relative;
+        width: 1000px;
+        height: 600px;
+        z-index: 5;
+      }
+
+  /* Label styles */
+      #activity-1 .math-label {
+        position: absolute;
+        font-size: 24px;
+        color: #555;
+        background: rgba(255,255,255,0.9);
+        padding: 4px 10px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        pointer-events: none;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        opacity: 0;
+      }
+      #activity-1 .math-label.show {
+        opacity: 1;
+      }
+
+  /* Slider area */
+      #activity-1 .control-panel {
+        position: absolute;
+        bottom: 50px;
+        width: 800px;
+        height: 120px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 20px;
+      }
+
+      #activity-1 .instruction-text {
+        font-size: 24px;
+        color: #333;
+        margin-bottom: 20px;
+        font-weight: bold;
+      }
+
+  /* Custom slider */
+      #activity-1 input[type=range] {
+        -webkit-appearance: none;
+        width: 600px;
+        height: 16px;
+        background: linear-gradient(to right, #4CAF50 0%, #e0e0e0 0%);
+        border-radius: 8px;
+        outline: none;
+        transition: background 0.1s;
+      }
+
+      #activity-1 input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 64px;
+        height: 64px;
+        background-image: url('./assets/slider_handle_scissors.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        cursor: pointer;
+        border: none;
+        transition: transform 0.2s;
+  margin-top: -24px; /* Fix vertical centering */
+        position: relative;
+        z-index: 2;
+      }
+
+      #activity-1 input[type=range]::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+      }
+
+  /* Result feedback */
+      #activity-1 .result-overlay {
+        position: absolute;
+        top: 40px;
+        right: 40px;
+        background: rgba(255,255,255,0.95);
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        z-index: 50;
+        display: none;
+        text-align: center;
+      }
+      #activity-1 .result-overlay.active {
+        display: block;
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      #activity-1 .next-btn {
+        background: #2196F3;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        font-size: 20px;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 0 #1976D2;
+        transition: transform 0.1s;
+        display: none;
+      }
+      #activity-1 .next-btn:active {
+        transform: translateY(4px);
+        box-shadow: none;
+      }
+
+      @keyframes popIn {
+        from { transform: scale(0.5); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+    </style>
+
+    <div class="activity-content">
+      <div class="grid-bg"></div>
+      
+  <!-- Geometry canvas -->
+      <div class="canvas-container" id="geo-canvas-1">
+        <svg width="100%" height="100%" viewBox="0 0 1000 600" style="overflow: visible;">
+          <defs>
+            <linearGradient id="shapeGradient-1" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#4facfe;stop-opacity:0.6" />
+              <stop offset="100%" style="stop-color:#00f2fe;stop-opacity:0.6" />
+            </linearGradient>
+            <marker id="arrow-1" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#666" />
+            </marker>
+          </defs>
+          
+          <!-- Fixed trapezoid (right side) -->
+          <path id="path-trapezoid-1" fill="url(#shapeGradient-1)" stroke="#1565C0" stroke-width="3" />
+          
+          <!-- Movable triangle (left side) -->
+          <g id="group-triangle-1">
+            <path id="path-triangle-1" fill="url(#shapeGradient-1)" stroke="#1565C0" stroke-width="3" />
+            <!-- Height on the triangle (dashed) -->
+            <line id="line-height-tri-1" stroke="#D32F2F" stroke-width="2" stroke-dasharray="8,4" />
+          </g>
+
+          <!-- Base annotation line -->
+          <line id="line-base-1" stroke="#666" stroke-width="2" marker-end="url(#arrow-1)" marker-start="url(#arrow-1)" />
+          
+          <!-- Height annotation line (fixed at the original parallelogram position) -->
+          <line id="line-height-static-1" stroke="#D32F2F" stroke-width="2" stroke-dasharray="5,5" />
+          
+        </svg>
+
+  <!-- Dynamic text labels -->
+  <div id="label-base-1" class="math-label show">Base</div>
+  <div id="label-height-1" class="math-label show">Height</div>
+        <div id="label-formula-1" class="math-label" style="top: 20px; left: 50%; transform: translateX(-50%); font-size: 32px; font-weight: bold; color: #2196F3;">
+          Parallelogram Area = Base × Height
+        </div>
+      </div>
+
+  <!-- Feedback panel -->
+      <div id="info-panel-1" class="result-overlay">
+  <h3 style="margin: 0 0 10px 0; color: #4CAF50;">Rearrangement complete!</h3>
+  <p style="font-size: 20px; margin: 0;">Base ➔ Length</p>
+  <p style="font-size: 20px; margin: 5px 0 0 0;">Height ➔ Width</p>
+      </div>
+
+  <!-- Controls -->
+      <div class="control-panel">
+  <div id="instruction-1" class="instruction-text">Drag the scissors to cut the left triangle and move it to the right side</div>
+        <input type="range" id="slider-1" min="0" max="100" value="0">
+  <button id="next-btn-1" class="next-btn" style="margin-top: 15px;">Next Shape</button>
+      </div>
+    </div>
+  `,
+
+      init() {
+        document.getElementById('activity-1').innerHTML = this.template;
+
+  // Get DOM references
+        this.dom = {
+          slider: document.getElementById('slider-1'),
+          trapezoid: document.getElementById('path-trapezoid-1'),
+          triangleGroup: document.getElementById('group-triangle-1'),
+          trianglePath: document.getElementById('path-triangle-1'),
+          heightLineTri: document.getElementById('line-height-tri-1'),
+          baseLine: document.getElementById('line-base-1'),
+          heightLineStatic: document.getElementById('line-height-static-1'),
+          labelBase: document.getElementById('label-base-1'),
+          labelHeight: document.getElementById('label-height-1'),
+          labelFormula: document.getElementById('label-formula-1'),
+          infoPanel: document.getElementById('info-panel-1'),
+          instruction: document.getElementById('instruction-1'),
+          nextBtn: document.getElementById('next-btn-1')
+        };
+
+  // Bind events
+        this.dom.slider.addEventListener('input', this.handleSliderInput.bind(this));
+        this.dom.nextBtn.addEventListener('click', this.nextQuestion.bind(this));
+
+  // Load the first question
+        this.generateQuestion(0);
+      },
+
+      generateQuestion(index) {
+  // Randomize geometry parameters
+        // base: 200-350, height: 150-250, slantAngle: 50-75 deg
+        // offset = height / tan(angle)
+        const h = 150 + Math.random() * 100;
+        const angleDeg = 50 + Math.random() * 25;
+        const angleRad = angleDeg * (Math.PI / 180);
+        const offset = h / Math.tan(angleRad);
+        const b = 250 + Math.random() * 150;
+
+        this.state.params = {
+          height: h,
+          base: b,
+          offset: offset,
+          totalW: b + offset
+        };
+
+        this.resetState();
+        this.renderQuestion();
+      },
+
+      resetState() {
+        this.state.progress = 0;
+        this.state.isComplete = false;
+        this.dom.slider.value = 0;
+        this.dom.slider.disabled = false;
+        this.dom.slider.style.background = `linear-gradient(to right, #4CAF50 0%, #e0e0e0 0%)`;
+
+        this.dom.infoPanel.classList.remove('active');
+        this.dom.nextBtn.style.display = 'none';
+  this.dom.instruction.textContent = "Drag the scissors to cut the left triangle and move it to the right side";
+
+  // Reset labels
+  this.dom.labelBase.textContent = "Base";
+  this.dom.labelHeight.textContent = "Height";
+  this.dom.labelFormula.textContent = "Parallelogram Area = Base × Height";
+        this.dom.labelFormula.style.color = "#2196F3"; // Blue
+
+        this.dom.triangleGroup.style.transform = `translate(0px, 0px)`;
+        this.dom.triangleGroup.style.opacity = '1';
+      },
+
+      renderQuestion() {
+        const { height, base, offset, totalW } = this.state.params;
+
+  // Compute canvas-centered coordinates
+        const canvasW = 1000;
+        const canvasH = 600;
+        const startX = (canvasW - totalW) / 2;
+        const startY = (canvasH - height) / 2;
+
+  // Key points (relative to the canvas)
+  // A: Lower-left projection point (foot of the vertical cut) -> (startX + offset, startY + height)
+  // B: Bottom-left vertex -> (startX, startY + height)
+  // C: Top-left vertex -> (startX + offset, startY)
+  // D: Top-right vertex -> (startX + offset + base, startY)
+  // E: Bottom-right vertex -> (startX + base, startY + height) -> Note: this was inconsistent; the base should be horizontal
+
+  // Redefine the coordinate system:
+        // Top-Left (C): (startX + offset, startY)
+        // Top-Right (D): (startX + offset + base, startY)
+        // Bottom-Left (B): (startX, startY + height)
+        // Bottom-Right (E): (startX + base, startY + height)
+
+  // Cutting logic: the height is usually drawn from the top-left corner (C) straight down to the base.
+  // Foot F: (startX + offset, startY + height)
+  // The cut-out triangle is the left triangle CBF (C is the top vertex, B is bottom-left, F is the foot).
+  // Vertex C: (startX + offset, startY)
+  // Vertex B: (startX, startY + height)
+  // Vertex F: (startX + offset, startY + height)
+
+  // Trapezoid part (right side): C -> D -> E -> F -> C
+
+        const C = { x: startX + offset, y: startY };
+        const D = { x: startX + offset + base, y: startY };
+        const B = { x: startX, y: startY + height };
+        const E = { x: startX + base, y: startY + height };
+        const F = { x: startX + offset, y: startY + height };
+
+  // 1. Draw the fixed right-side trapezoid
+        // Path: F -> E -> D -> C -> F (close)
+        const trapezoidPath = `M ${F.x},${F.y} L ${E.x},${E.y} L ${D.x},${D.y} L ${C.x},${C.y} Z`;
+        this.dom.trapezoid.setAttribute('d', trapezoidPath);
+
+  // 2. Draw the movable left-side triangle
+        // Path: F -> B -> C -> F (close)
+  // Note: the initial position is defined here. When moving, translate the entire group.
+        const trianglePath = `M ${F.x},${F.y} L ${B.x},${B.y} L ${C.x},${C.y} Z`;
+        this.dom.trianglePath.setAttribute('d', trianglePath);
+
+  // 3. Height on the triangle (dashed C -> F)
+        this.dom.heightLineTri.setAttribute('x1', C.x);
+        this.dom.heightLineTri.setAttribute('y1', C.y);
+        this.dom.heightLineTri.setAttribute('x2', F.x);
+        this.dom.heightLineTri.setAttribute('y2', F.y);
+
+  // 4. Base annotation line (represents the "base")
+  // From B to E
+        this.dom.baseLine.setAttribute('x1', B.x);
+  this.dom.baseLine.setAttribute('y1', E.y + 20); // Move down by 20px
+        this.dom.baseLine.setAttribute('x2', E.x);
+        this.dom.baseLine.setAttribute('y2', E.y + 20);
+
+  // 5. Static height (after the triangle moves away, leave a dashed hint at the original position)
+        this.dom.heightLineStatic.setAttribute('x1', C.x);
+        this.dom.heightLineStatic.setAttribute('y1', C.y);
+        this.dom.heightLineStatic.setAttribute('x2', F.x);
+        this.dom.heightLineStatic.setAttribute('y2', F.y);
+
+  // 6. Update label positions
+        this.updateLabels(startX, startY, base, height, offset, 0);
+      },
+
+      updateLabels(startX, startY, base, height, offset, progress) {
+        // Base - positioned below the center of the base edge
+        const centerX = startX + base / 2 + (progress < 0.5 ? offset / 2 : 0); // Simplified handling
+        this.dom.labelBase.style.left = `${startX + base / 2 + offset / 2}px`; // Centered relative to the whole shape
+        this.dom.labelBase.style.top = `${startY + height + 30}px`;
+
+        // Height - positioned next to the perpendicular
+        this.dom.labelHeight.style.left = `${startX + offset - 40}px`;
+        this.dom.labelHeight.style.top = `${startY + height / 2}px`;
+      },
+
+      handleSliderInput(e) {
+        const val = parseInt(e.target.value);
+        const progress = val / 100;
+        this.state.progress = progress;
+
+        // Update slider background progress
+        this.dom.slider.style.background = `linear-gradient(to right, #4CAF50 ${val}%, #e0e0e0 ${val}%)`;
+
+        // Animation logic
+        const { base } = this.state.params;
+        const moveX = base * progress;
+
+        // Move the triangle group
+        this.dom.triangleGroup.style.transform = `translate(${moveX}px, 0px)`;
+
+        // Check completion
+        if (val === 100 && !this.state.isComplete) {
+          this.handleComplete();
+        } else if (val < 100 && this.state.isComplete) {
+          // If the user drags backward, reset the completion state
+          this.state.isComplete = false;
+          this.dom.infoPanel.classList.remove('active');
+          this.dom.nextBtn.style.display = 'none';
+          this.dom.labelBase.textContent = "Base";
+          this.dom.labelHeight.textContent = "Height";
+          this.dom.labelFormula.textContent = "Parallelogram Area = Base × Height";
+          this.dom.labelFormula.style.color = "#2196F3";
+        }
+      },
+
+      handleComplete() {
+        this.state.isComplete = true;
+
+        // Play audio feedback (if supported by the framework)
+        if (window.gameEngine && window.gameEngine.playSound) {
+          window.gameEngine.playSound('success');
+        }
+
+        // Update UI text
+        this.dom.instruction.textContent = "Rearrangement complete! It becomes a rectangle.";
+
+        // Label changes
+        this.dom.labelBase.textContent = "Length";
+        this.dom.labelHeight.textContent = "Width";
+        this.dom.labelFormula.textContent = "Rectangle Area = Length × Width";
+        this.dom.labelFormula.style.color = "#4CAF50"; // Green
+
+        // Show feedback panel and the next-question button
+        this.dom.infoPanel.classList.add('active');
+        this.dom.nextBtn.style.display = 'inline-block';
+        this.dom.slider.disabled = true; // Temporarily disable to prevent accidental input (or keep enabled)
+      },
+
+      nextQuestion() {
+        this.state.currentQuestion++;
+        if (this.state.currentQuestion >= this.config.totalQuestions) {
+          this.handleCompleteAll();
+          return;
+        }
+        this.generateQuestion(this.state.currentQuestion);
+
+        // Update progress
+        const progressEl = document.querySelector('#activity-1 .progress');
+        if (progressEl) {
+          progressEl.textContent = `${this.state.currentQuestion + 1}/${this.config.totalQuestions}`;
+        }
+      },
+
+      handleCompleteAll() {
+        const content = document.querySelector('#activity-1 .activity-content');
+        if (content) {
+          content.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+              <h2 style="font-size: 40px; color: #4CAF50; margin-bottom: 20px;">🎉 Congratulations!</h2>
+              <p style="font-size: 24px; color: #555;">You've completed all transformation magic experiments!</p>
+              <button onclick="ActivityManager.goHome()" style="margin-top: 40px; padding: 15px 40px; font-size: 24px; background: #2196F3; color: white; border: none; border-radius: 50px; cursor: pointer;">Home</button>
+            </div>
+          `;
+        }
+      },
+
+      destroy() {
+  // Clean up event listeners, etc.
+        if (this.dom.slider) {
+          this.dom.slider.removeEventListener('input', this.handleSliderInput);
+        }
+  // Release references
+        this.dom = null;
+      }
+    };
+    window.ACTIVITY_2 = {
+      config: {
+        totalQuestions: 10,
+        questionType: "random",
+        assets: {
+          // SVG icons handled via code
+        }
+      },
+
+      template: `
+  ${createActivityHeader('Find the Matching Height', '1/10')}
+    <div class="activity-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; background: #f0f4f8;">
+      
+  <!-- Hint text -->
+      <div id="instruction-2" style="font-size: 24px; color: #333; margin-bottom: 20px; font-weight: bold; height: 40px;">
+  Please click the <span style="color: #4CAF50;">height</span> corresponding to the highlighted base.
+      </div>
+
+  <!-- Drawing area -->
+      <div class="svg-container" style="position: relative; width: 800px; height: 500px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <svg id="geometry-svg-2" viewBox="0 0 800 500" style="width: 100%; height: 100%;">
+          <defs>
+            <marker id="arrow-2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+            </marker>
+          </defs>
+          <!-- Shape layer -->
+          <g id="shape-layer-2"></g>
+          <!-- Options layer -->
+          <g id="options-layer-2"></g>
+          <!-- Feedback layer -->
+          <g id="feedback-layer-2"></g>
+        </svg>
+      </div>
+
+  <!-- Feedback modal -->
+      <div id="feedback-box-2" style="position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 15px 30px; border-radius: 30px; font-size: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none;">
+  Feedback
+      </div>
+
+    </div>
+    
+    <div class="activity-footer">
+  <button class="next-btn" id="next-btn-2" style="display: none;">Next</button>
+    </div>
+
+    <style>
+  /* Blinking animation */
+      @keyframes flash-stroke-2 {
+        0% { stroke-opacity: 0.4; stroke-width: 4; }
+        50% { stroke-opacity: 1; stroke-width: 6; filter: drop-shadow(0 0 5px #ff9800); }
+        100% { stroke-opacity: 0.4; stroke-width: 4; }
+      }
+
+      .parallelogram-base-highlight {
+        stroke: #ff9800;
+        animation: flash-stroke-2 1.5s infinite;
+        stroke-linecap: round;
+      }
+
+  /* Option line styles */
+      .option-line {
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .option-line:hover {
+        stroke-width: 6 !important;
+        filter: drop-shadow(0 0 3px rgba(0,0,0,0.3));
+      }
+      
+  /* Expand clickable hit area */
+      .hit-area {
+        stroke: transparent;
+        stroke-width: 20;
+        cursor: pointer;
+      }
+    </style>
+  `,
+
+      state: {
+        currentQuestion: 0,
+        score: 0,
+        canInteract: true,
+        qData: null
+      },
+
+      init() {
+        // Reset state on entry
+        this.state.currentQuestion = 0;
+        this.state.score = 0;
+        this.state.canInteract = true;
+        this.state.qData = null;
+
+  // Render template
+        document.getElementById('activity-2').innerHTML = this.template;
+
+  // Bind the Next button
+        document.getElementById(`next-btn-2`).addEventListener('click', () => {
+          this.nextQuestion();
+        });
+
+  // Load the first question
+        this.loadQuestion();
+      },
+
+      loadQuestion() {
+        if (this.state.currentQuestion >= this.config.totalQuestions) {
+          this.showResult();
+          return;
+        }
+
+        this.state.canInteract = true;
+        document.getElementById(`next-btn-2`).style.display = 'none';
+        this.hideFeedback();
+
+        // 清空绘图
+        const shapeLayer = document.getElementById(`shape-layer-2`);
+        const optionsLayer = document.getElementById(`options-layer-2`);
+        const feedbackLayer = document.getElementById(`feedback-layer-2`);
+        shapeLayer.innerHTML = '';
+        optionsLayer.innerHTML = '';
+        feedbackLayer.innerHTML = '';
+
+        // 生成并渲染
+        this.generateQuestion(this.state.currentQuestion);
+        this.renderQuestion();
+
+        // 更新头部进度
+        const progressEl = document.querySelector('#activity-2 .progress');
+        if (progressEl) {
+          progressEl.textContent = `${this.state.currentQuestion + 1}/${this.config.totalQuestions}`;
+        }
+      },
+
+      // 数学几何工具函数
+      math: {
+        rotatePoint(x, y, cx, cy, angleDeg) {
+          const rad = angleDeg * Math.PI / 180;
+          const cos = Math.cos(rad);
+          const sin = Math.sin(rad);
+          const dx = x - cx;
+          const dy = y - cy;
+          return {
+            x: cx + dx * cos - dy * sin,
+            y: cy + dx * sin + dy * cos
+          };
+        },
+        getProjection(px, py, x1, y1, x2, y2) {
+          const A = px - x1;
+          const B = py - y1;
+          const C = x2 - x1;
+          const D = y2 - y1;
+          const dot = A * C + B * D;
+          const lenSq = C * C + D * D;
+          const param = lenSq !== 0 ? dot / lenSq : -1;
+
+          const xx = x1 + param * C;
+          const yy = y1 + param * D;
+          return { x: xx, y: yy, t: param };
+        }
+      },
+
+      generateQuestion(index) {
+        // Retry loop to ensure valid geometry (height falls on base)
+        let isValid = false;
+        let attempts = 0;
+
+        // Define scoped variables outside
+        let points, baseIndex, p1, p2, options, baseLine;
+
+        while (!isValid && attempts < 20) {
+          attempts++;
+
+          const cx = 400, cy = 250;
+          const width = 200 + Math.random() * 100;
+          const height = 120 + Math.random() * 80;
+          // Limit shift to ensure parallelogram isn't too skewed
+          // Skew factor: offset should be less than width/2 roughly to keep height on base? Not necessarily.
+          // We check the projection logic below.
+          const shift = (Math.random() - 0.5) * 80;
+
+          const halfW = width / 2;
+          const halfH = height / 2;
+          const halfShift = shift / 2;
+
+          const rawPoints = [
+            { x: cx - halfW + halfShift, y: cy - halfH }, // TL
+            { x: cx + halfW + halfShift, y: cy - halfH }, // TR
+            { x: cx + halfW - halfShift, y: cy + halfH }, // BR
+            { x: cx - halfW - halfShift, y: cy + halfH }  // BL
+          ];
+
+          const rotation = (Math.random() * 30) - 15; // Reduce rotation slightly
+          points = rawPoints.map(p => this.math.rotatePoint(p.x, p.y, cx, cy, rotation));
+
+          baseIndex = Math.floor(Math.random() * 4);
+          p1 = points[baseIndex];
+          p2 = points[(baseIndex + 1) % 4];
+
+          // Check Correct Option feasibility
+          const targetVertexIndex = (baseIndex + 3) % 4; // Use D (previous point) relative to A (base start) usually gives better internal height
+          const v1 = points[targetVertexIndex];
+          const v2 = points[(targetVertexIndex + 3) % 4]; // The other opposite vertex
+
+          // We want a vertex whose projection falls strictly ON the base (0.1 < t < 0.9)
+          const proj1 = this.math.getProjection(v1.x, v1.y, p1.x, p1.y, p2.x, p2.y);
+          const proj2 = this.math.getProjection(v2.x, v2.y, p1.x, p1.y, p2.x, p2.y);
+
+          let bestStart, bestEnd;
+
+          if (proj1.t > 0.1 && proj1.t < 0.9) {
+            bestStart = v1;
+            bestEnd = proj1;
+            isValid = true;
+          } else if (proj2.t > 0.1 && proj2.t < 0.9) {
+            bestStart = v2;
+            bestEnd = proj2;
+            isValid = true;
+          }
+
+          if (isValid) {
+            options = [];
+            options.push({
+              id: 'correct',
+              type: 'correct',
+              start: bestStart,
+              end: bestEnd,
+              label: '高'
+            });
+
+            // Wrong Neighbor (Normal to neighbor side)
+            const neighborIndex = (baseIndex + 1) % 4;
+            const n1 = points[neighborIndex];
+            const n2 = points[(neighborIndex + 1) % 4];
+            const wrongStart = points[(neighborIndex + 2) % 4];
+            const wrongProj = this.math.getProjection(wrongStart.x, wrongStart.y, n1.x, n1.y, n2.x, n2.y);
+
+            options.push({
+              id: 'wrong_neighbor',
+              type: 'wrong',
+              feedback: 'This is the height of the adjacent edge, not the height of the specified bottom edge',
+              start: wrongStart,
+              end: wrongProj
+            });
+
+            // Wrong Slant (The neighbor side itself)
+            // p1 is base start. (baseIndex + 3) is previous point. 
+            // So p1 -> points[(baseIndex+3)%4] is a slant edge connected to base.
+            options.push({
+              id: 'wrong_slant',
+              type: 'wrong',
+              feedback: 'This is the slant edge of the shape, the height must be perpendicular to the base.',
+              start: p1,
+              end: points[(baseIndex + 3) % 4]
+            });
+
+            baseLine = { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
+          }
+        }
+
+        // Fallback if loop exhausted (unlikely with 20 attempts)
+        if (!isValid) {
+          // Create a simple horizontal rect fallback to crash-proof
+          points = [
+            { x: 300, y: 200 }, { x: 500, y: 200 }, { x: 500, y: 300 }, { x: 300, y: 300 }
+          ];
+          baseIndex = 2; // Bottom edge
+          p1 = points[2]; p2 = points[3];
+          baseLine = { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
+          options = [
+            { id: 'correct', type: 'correct', start: points[0], end: { x: points[0].x, y: 300 }, label: 'H' },
+            { id: 'wrong1', type: 'wrong', start: points[0], end: points[1], feedback: 'Wrong' },
+            { id: 'wrong2', type: 'wrong', start: points[1], end: points[2], feedback: 'Wrong' }
+          ];
+        }
+
+        this.shuffle(options);
+        this.state.qData = { points, baseIndex, baseLine, options };
+      },
+
+      renderQuestion() {
+        const { points, baseLine, options } = this.state.qData;
+        const svg = document.getElementById(`geometry-svg-2`);
+        const shapeLayer = document.getElementById(`shape-layer-2`);
+        const optionsLayer = document.getElementById(`options-layer-2`);
+
+        // 1. 绘制平行四边形背景
+        const pointsStr = points.map(p => `${p.x},${p.y}`).join(' ');
+        const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        polygon.setAttribute("points", pointsStr);
+        polygon.setAttribute("fill", "#e3f2fd");
+        polygon.setAttribute("stroke", "#2196f3");
+        polygon.setAttribute("stroke-width", "2");
+        shapeLayer.appendChild(polygon);
+
+        // 2. 绘制高亮的底边
+        const base = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        base.setAttribute("x1", baseLine.x1);
+        base.setAttribute("y1", baseLine.y1);
+        base.setAttribute("x2", baseLine.x2);
+        base.setAttribute("y2", baseLine.y2);
+        base.setAttribute("class", "parallelogram-base-highlight");
+        shapeLayer.appendChild(base);
+
+        // 添加 "底" 字标签
+        const midX = (baseLine.x1 + baseLine.x2) / 2;
+        const midY = (baseLine.y1 + baseLine.y2) / 2;
+        // 简单的偏移，实际应根据法向量计算
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", midX + 10);
+        text.setAttribute("y", midY + 10);
+        text.setAttribute("fill", "#ff9800");
+        text.setAttribute("font-weight", "bold");
+        text.setAttribute("font-size", "20");
+        text.textContent = "Bottom edge";
+        shapeLayer.appendChild(text);
+
+        // 3. 绘制选项线条
+        options.forEach((opt, idx) => {
+          const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          g.setAttribute("class", "option-group");
+          g.style.cursor = "pointer";
+
+          // 透明热区（方便点击）
+          const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          hit.setAttribute("x1", opt.start.x);
+          hit.setAttribute("y1", opt.start.y);
+          hit.setAttribute("x2", opt.end.x);
+          hit.setAttribute("y2", opt.end.y);
+          hit.setAttribute("class", "hit-area");
+
+          // 可见虚线
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", opt.start.x);
+          line.setAttribute("y1", opt.start.y);
+          line.setAttribute("x2", opt.end.x);
+          line.setAttribute("y2", opt.end.y);
+          line.setAttribute("stroke", "#555");
+          line.setAttribute("stroke-width", "3");
+          line.setAttribute("stroke-dasharray", "8, 6");
+          line.setAttribute("class", "option-line");
+          line.setAttribute("id", `opt-line-${idx}`);
+
+          g.appendChild(hit);
+          g.appendChild(line);
+
+          // 事件绑定
+          g.onclick = (e) => this.checkAnswer(opt, idx, e);
+
+          optionsLayer.appendChild(g);
+        });
+      },
+
+      checkAnswer(option, index, event) {
+        if (!this.state.canInteract) return;
+
+        const lineEl = document.getElementById(`opt-line-${index}`);
+        const feedbackLayer = document.getElementById(`feedback-layer-2`);
+
+        if (option.type === 'correct') {
+          // 正确
+          this.state.canInteract = false;
+          if (window.gameEngine) window.gameEngine.playSound('success');
+
+          // 样式变更
+          lineEl.setAttribute("stroke", "#4caf50");
+          lineEl.setAttribute("stroke-width", "5");
+          lineEl.setAttribute("stroke-dasharray", ""); // 变实线
+
+          // 绘制直角符号
+          this.drawRightAngle(feedbackLayer, option.end, this.state.qData.baseLine, option.start);
+
+          this.showFeedback("Correct! This is the height corresponding to the base.", "success");
+
+          // 自动下一题
+          setTimeout(() => {
+            document.getElementById(`next-btn-2`).click();
+          }, 1500);
+
+        } else {
+          // 错误
+          if (window.gameEngine) window.gameEngine.playSound('error');
+
+          // 样式变更 (红色抖动)
+          lineEl.setAttribute("stroke", "#f44336");
+
+          // 简单的抖动动画
+          const group = lineEl.parentElement;
+          if (window.gameEngine) window.gameEngine.showFeedback(group, 'shake');
+
+          this.showFeedback(option.feedback || "选择错误，请重试", "error");
+        }
+      },
+
+      // 绘制直角符号 L型
+      drawRightAngle(container, foot, baseLine, startPoint) {
+        // 1. 计算基向量
+        // Base Vector
+        let dx = baseLine.x2 - baseLine.x1;
+        let dy = baseLine.y2 - baseLine.y1;
+        const lenBase = Math.sqrt(dx * dx + dy * dy);
+        if (lenBase < 0.001) return;
+        const uBase = { x: dx / lenBase, y: dy / lenBase };
+
+        // Altitude Vector (Foot -> Start)
+        let hx = startPoint.x - foot.x;
+        let hy = startPoint.y - foot.y;
+        const lenAlt = Math.sqrt(hx * hx + hy * hy);
+        if (lenAlt < 0.001) return;
+        const uAlt = { x: hx / lenAlt, y: hy / lenAlt };
+
+        // 2. 决定 Base 方向的符号
+        // 为了美观，我们希望符号画在"垂足"朝向"线段中心"的那一侧
+        // 这样符号不会画出线段外（如果是端点垂足）
+        const midX = (baseLine.x1 + baseLine.x2) / 2;
+        const midY = (baseLine.y1 + baseLine.y2) / 2;
+        const toMidX = midX - foot.x;
+        const toMidY = midY - foot.y;
+
+        // Dot product to check direction
+        const dot = toMidX * uBase.x + toMidY * uBase.y;
+        let baseDirX = uBase.x;
+        let baseDirY = uBase.y;
+
+        // 如果垂足就在中点附近，或者指向反了，则翻转
+        // 优先朝向中点；如果就在中点，随便选一个
+        if (dot < 0) {
+          baseDirX = -uBase.x;
+          baseDirY = -uBase.y;
+        }
+
+        // 3. 计算符号的三个关键点
+        const size = 15;
+        // P1: 在底边上
+        const p1 = { x: foot.x + baseDirX * size, y: foot.y + baseDirY * size };
+        // P2: 在高线上
+        const p2 = { x: foot.x + uAlt.x * size, y: foot.y + uAlt.y * size };
+        // P3: 角点 (向量合成)
+        // P3 = Foot + (VecBase + VecAlt)
+        const p3 = { x: foot.x + baseDirX * size + uAlt.x * size, y: foot.y + baseDirY * size + uAlt.y * size };
+
+        // 4. 绘制折线 P1 -> P3 -> P2
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        path.setAttribute("points", `${p1.x},${p1.y} ${p3.x},${p3.y} ${p2.x},${p2.y}`);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "#4caf50");
+        path.setAttribute("stroke-width", "2");
+
+        container.appendChild(path);
+      },
+
+      showFeedback(text, type) {
+        const box = document.getElementById(`feedback-box-2`);
+        box.textContent = text;
+        box.style.backgroundColor = type === 'success' ? 'rgba(76, 175, 80, 0.9)' : 'rgba(244, 67, 54, 0.9)';
+        box.style.opacity = '1';
+
+        if (this.feedbackTimer) clearTimeout(this.feedbackTimer);
+        this.feedbackTimer = setTimeout(() => {
+          box.style.opacity = '0';
+        }, 2000);
+      },
+
+      hideFeedback() {
+        const box = document.getElementById(`feedback-box-2`);
+        if (box) box.style.opacity = '0';
+      },
+
+      nextQuestion() {
+        this.state.currentQuestion++;
+        if (this.state.currentQuestion < this.config.totalQuestions) {
+          this.loadQuestion();
+        } else {
+          this.showResult();
+        }
+      },
+
+      showResult() {
+        const content = document.querySelector('#activity-2 .activity-content');
+        content.innerHTML = `
+      <div style="text-align: center; margin-top: 100px;">
+        <h2>🎉 The exercise is done!</h2>
+        <p>You have mastered how to find the height of a parallelogram.</p>
+        <button onclick="window.ActivityManager.goHome()" style="padding: 12px 24px; background: #2196f3; color: white; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; margin-top: 20px;">Return to Home</button>
+      </div>
+    `;
+        document.getElementById(`next-btn-2`).style.display = 'none';
+      },
+
+      shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      },
+
+      destroy() {
+        // 清理资源
+        if (this.feedbackTimer) clearTimeout(this.feedbackTimer);
+      }
+    };
+    window.ACTIVITY_3 = {
+      config: {
+        totalQuestions: 10,
+        questionType: "random",
+        assets: {
+          barFrame: "./assets/ui_progress_bar_frame.png",
+          bubbleYellow: "./assets/card_bubble_yellow.png",
+          bubbleBlue: "./assets/card_bubble_blue.png",
+          bubbleRed: "./assets/card_bubble_red.png",
+          starGold: "./assets/icon_star_gold.png",
+          starGray: "./assets/icon_star_gray.png"
+        }
+      },
+
+      template: `
+    ${createActivityHeader('Area Matching Game', '1/10')}
+    <div class="activity-content" style="position: relative; width: 100%; height: 100%; overflow: hidden; font-family: 'Arial', sans-serif;">
+      
+      <!-- 左侧：几何图形区域 -->
+      <div id="geo-area-3" style="position: absolute; left: 100px; top: 150px; width: 1000px; height: 700px; display: flex; justify-content: center; align-items: center;">
+        
+        <!-- 放置区域 (z-index 15) -->
+        <div id="drop-zone-3" style="
+          position: absolute; 
+          width: 200px; 
+          height: 150px; 
+          z-index: 15; 
+          border-radius: 20px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          transition: all 0.3s;
+          left: 50%; top: 50%; transform: translate(-50%, -50%);
+        ">
+          <div class="placeholder-text" style="color: #666; font-size: 24px; pointer-events: none; opacity: 0.5;">
+            拖入面积
+          </div>
+        </div>
+
+        <!-- SVG 容器 (z-index 5) -->
+        <svg id="svg-canvas-3" width="1000" height="700" style="position: absolute; z-index: 5; pointer-events: none; overflow: visible;">
+          <!-- 动态生成的路径 -->
+        </svg>
+
+        <!-- 数据标注 (z-index 6) -->
+        <div id="labels-layer-3" style="position: absolute; width: 100%; height: 100%; z-index: 6; pointer-events: none;"></div>
+        
+        <!-- 错误提示气泡 (z-index 200) -->
+        <div id="feedback-tooltip-3" style="
+          position: absolute; 
+          background: #FF5252; 
+          color: white; 
+          padding: 15px 25px; 
+          border-radius: 50px; 
+          font-size: 24px; 
+          font-weight: bold;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+          opacity: 0; 
+          transition: opacity 0.3s; 
+          z-index: 200;
+          pointer-events: none;
+          left: 50%; top: 30%; transform: translate(-50%, -50%);
+        ">小心！求面积要用底乘高</div>
+
+      </div>
+
+      <!-- 右侧：答案选项区域 -->
+      <div id="options-area-3" style="position: absolute; right: 100px; top: 150px; width: 400px; height: 700px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 60px;">
+        <!-- 选项将通过JS动态插入 -->
+      </div>
+
+      <!-- 反馈结果展示 -->
+      <div id="result-overlay-3" style="
+        position: absolute; left: 0; top: 0; width: 100%; height: 100%; 
+        display: none; justify-content: center; align-items: center; 
+        z-index: 300; pointer-events: none;
+      ">
+        <img src="./assets/icon_star_gold.png" style="width: 300px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+      </div>
+
+    </div>
+
+    <div class="activity-footer">
+      <button id="next-btn-3" style="
+        display: none;
+        padding: 15px 40px;
+        font-size: 24px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 0 #388E3C;
+      ">Next question</button>
+    </div>
+
+    <style>
+      @keyframes popIn {
+        0% { transform: scale(0); opacity: 0; }
+        80% { transform: scale(1.1); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .card-item {
+        transition: transform 0.2s;
+        cursor: grab;
+      }
+      .card-item:active {
+        cursor: grabbing;
+        transform: scale(1.05);
+      }
+      .label-text {
+        position: absolute;
+        font-size: 28px;
+        font-weight: bold;
+        color: #333;
+        background: rgba(255,255,255,0.8);
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+    </style>
+  `,
+
+      state: {
+        currentQuestionIndex: 0,
+        score: 0,
+        currentData: null,
+        draggables: [],
+        isAnimating: false
+      },
+
+      init() {
+        // 1. 渲染模板
+        document.getElementById('activity-3').innerHTML = this.template;
+
+        // 2. 绑定事件
+        document.getElementById(`next-btn-3`).onclick = () => this.nextQuestion();
+
+        // 3. 加载第一题
+        this.loadQuestion();
+      },
+
+      loadQuestion() {
+        if (this.state.currentQuestionIndex >= this.config.totalQuestions) {
+          this.showResult();
+          return;
+        }
+
+        // 更新头部进度
+        // 更新头部进度
+        const progressEl = document.querySelector('#activity-3 .activity-header .progress');
+        if (progressEl) {
+          progressEl.innerText = `${this.state.currentQuestionIndex + 1}/${this.config.totalQuestions}`;
+        }
+
+        // 重置界面
+        this.resetUI();
+
+        // 生成数据
+        this.generateQuestion(this.state.currentQuestionIndex);
+
+        // 渲染题目
+        this.renderQuestion();
+      },
+
+      resetUI() {
+        document.getElementById(`next-btn-3`).style.display = 'none';
+        document.getElementById(`result-overlay-3`).style.display = 'none';
+        document.getElementById(`drop-zone-3`).innerHTML = `
+      <div class="placeholder-text" style="color: #666; font-size: 24px; pointer-events: none; opacity: 0.5;">
+        Dragged area
+      </div>
+    `;
+        document.getElementById(`drop-zone-3`).style.border = 'none';
+        document.getElementById(`drop-zone-3`).style.boxShadow = 'none';
+        document.getElementById(`feedback-tooltip-3`).style.opacity = '0';
+
+        // 清理旧的拖拽实例
+        this.state.draggables.forEach(d => d.destroy());
+        this.state.draggables = [];
+        this.state.isAnimating = false;
+      },
+
+      generateQuestion(index) {
+        // 随机生成参数
+        const b = Math.floor(Math.random() * 11) + 5; // 5-15
+        const h = Math.floor(Math.random() * 9) + 4;  // 4-12
+        const minSlant = h + 1;
+        const s = Math.floor(Math.random() * (16 - minSlant + 1)) + minSlant; // > h
+
+        const correct = b * h;
+        const trapSlant = b * s;
+        const trapDouble = (b + h) * 2;
+        const trapRand = b * h + 10;
+
+        // 生成干扰项，确保不重复
+        let options = [
+          { value: correct, type: 'correct' },
+          { value: trapSlant, type: 'trap_slant' }
+        ];
+
+        // 添加第三个选项
+        const thirdVal = Math.random() > 0.5 ? trapDouble : trapRand;
+        if (thirdVal !== correct && thirdVal !== trapSlant) {
+          options.push({ value: thirdVal, type: 'wrong' });
+        } else {
+          options.push({ value: correct + 5, type: 'wrong' });
+        }
+
+        // 打乱选项
+        options = options.sort(() => Math.random() - 0.5);
+
+        this.state.currentData = {
+          base: b,
+          height: h,
+          slant: s,
+          options: options,
+          correctValue: correct
+        };
+      },
+
+      renderQuestion() {
+        const data = this.state.currentData;
+        const svgEl = document.getElementById(`svg-canvas-3`);
+        const labelsEl = document.getElementById(`labels-layer-3`);
+        const optionsEl = document.getElementById(`options-area-3`);
+
+        // 1. 绘制 SVG 平行四边形
+        // 计算坐标 (放大40倍显示)
+        const scale = 40;
+        const offsetX = Math.sqrt(data.slant * data.slant - data.height * data.height) * scale;
+        const bPx = data.base * scale;
+        const hPx = data.height * scale;
+
+        // 居中计算
+        const totalW = bPx + offsetX;
+        const startX = (1000 - totalW) / 2;
+        const startY = (700 - hPx) / 2 + hPx; // Bottom Y
+
+        // 坐标点
+        const p1 = { x: startX, y: startY }; // 左下
+        const p2 = { x: startX + bPx, y: startY }; // 右下
+        const p3 = { x: startX + bPx + offsetX, y: startY - hPx }; // 右上
+        const p4 = { x: startX + offsetX, y: startY - hPx }; // 左上
+
+        // 垂足 (高)
+        const pHeightBase = { x: p4.x, y: startY };
+
+        // 清空并绘制
+        svgEl.innerHTML = `
+      <!-- 填充色 -->
+      <path d="M${p1.x},${p1.y} L${p2.x},${p2.y} L${p3.x},${p3.y} L${p4.x},${p4.y} Z" 
+            fill="rgba(33, 150, 243, 0.1)" stroke="#2196F3" stroke-width="4" stroke-linejoin="round"/>
+      
+      <!-- 高 (虚线) -->
+      <line x1="${p4.x}" y1="${p4.y}" x2="${pHeightBase.x}" y2="${pHeightBase.y}" 
+            stroke="#FF5722" stroke-width="3" stroke-dasharray="8,4" />
+      
+      <!-- 直角标记 -->
+      <polyline points="${pHeightBase.x},${pHeightBase.y - 15} ${pHeightBase.x + 15},${pHeightBase.y - 15} ${pHeightBase.x + 15},${pHeightBase.y}"
+            fill="none" stroke="#FF5722" stroke-width="2" />
+    `;
+
+        // 2. 添加标注 (DOM层)
+        labelsEl.innerHTML = '';
+
+        // 底 (Bottom)
+        this.createLabel(labelsEl, data.base + ' cm', startX + bPx / 2, startY + 10);
+        // 高 (Height)
+        this.createLabel(labelsEl, data.height + ' cm', p4.x + 10, startY - hPx / 2, '#FF5722');
+        // 斜边 (Slant) - 在左侧
+        this.createLabel(labelsEl, data.slant + ' cm', (p1.x + p4.x) / 2 - 40, (p1.y + p4.y) / 2);
+
+        // 3. 渲染选项卡片
+        optionsEl.innerHTML = '';
+        const bubblebgs = [
+          this.config.assets.bubbleYellow,
+          this.config.assets.bubbleBlue,
+          this.config.assets.bubbleRed
+        ];
+
+        data.options.forEach((opt, idx) => {
+          const cardId = `card-${idx}-3`;
+          const card = document.createElement('div');
+          card.id = cardId;
+          card.className = 'card-item';
+          card.style.cssText = `
+        width: 140px; height: 140px;
+        background-image: url('${bubblebgs[idx % 3]}');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 32px;
+        font-weight: bold;
+        color: #333;
+        z-index: 20;
+        position: relative;
+      `;
+          card.innerText = opt.value;
+          optionsEl.appendChild(card);
+
+          // 初始化拖拽
+          this.initDraggable(card, opt);
+
+
+        });
+
+        // 4. 定位放置区 (Drop Zone) - 放在图形中心
+        const dropZone = document.getElementById(`drop-zone-3`);
+        const centerX = (p1.x + p3.x) / 2;
+        const centerY = (p1.y + p3.y) / 2;
+        // 因为dropZone是absolute 50% 50%布局在geo-area中，我们需要根据SVG位置调整吗？
+        // 实际上geo-area是relative to content. SVG is inside geo-area.
+        // 我们只需把dropZone放在SVG的中心。
+        // 由于dropZone使用了 translate(-50%, -50%) 且 left/top 是相对于geo-area的
+        // 直接设置 left/top 即可
+        dropZone.style.left = `${centerX}px`;
+        dropZone.style.top = `${centerY}px`;
+      },
+
+      createLabel(container, text, x, y, color = '#333') {
+        const el = document.createElement('div');
+        el.className = 'label-text';
+        el.innerText = text;
+        el.style.color = color;
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        el.style.transform = 'translate(-50%, -50%)';
+        container.appendChild(el);
+      },
+
+      initDraggable(el, itemData) {
+        const dropZone = document.getElementById(`drop-zone-3`);
+        const container = document.getElementById(`activity-3`);
+
+        // Track start position for click detection
+        let startX = 0, startY = 0;
+
+        const drag = new TeachingGameEngine.Draggable(el, {
+          container: container,
+          onDragStart: (e) => {
+            if (this.state.isAnimating) return;
+
+            // Capture start coordinates (handle mobile & desktop)
+            const pt = (e.touches && e.touches.length) ? e.touches[0] : e;
+            startX = pt.clientX;
+            startY = pt.clientY;
+
+            el.style.zIndex = 100;
+            gameEngine.playSound('click');
+            // 高亮放置区
+            dropZone.style.boxShadow = '0 0 20px rgba(76, 175, 80, 0.8)';
+            dropZone.style.border = '3px dashed #4CAF50';
+          },
+          onDragEnd: (e) => {
+            el.style.zIndex = 20;
+            // 移除高亮
+            dropZone.style.boxShadow = 'none';
+            dropZone.style.border = 'none';
+
+            // Check for click (minimal movement)
+            const pt = (e.changedTouches && e.changedTouches.length) ? e.changedTouches[0] : e;
+            // Note: clientX/Y on mouseup might be available directly on e for mouse events
+            // but TeachingGameEngine normalizing might vary. Standard MouseEvent has clientX.
+            // Pointer events or TouchEvents differ.
+            // Safest to check e.clientX if not touch.
+            const curX = pt.clientX !== undefined ? pt.clientX : (e.clientX !== undefined ? e.clientX : 0);
+            const curY = pt.clientY !== undefined ? pt.clientY : (e.clientY !== undefined ? e.clientY : 0);
+
+            const dist = Math.sqrt(Math.pow(curX - startX, 2) + Math.pow(curY - startY, 2));
+
+            // If moved less than 5px, treat as click
+            if (dist < 5) {
+              this.handleDrop(null, dropZone, el, itemData);
+              return;
+            }
+
+            // 检测碰撞
+            if (this.isOverlapping(el, dropZone)) {
+              this.handleDrop(e, dropZone, el, itemData);
+            }
+          }
+        });
+
+        this.state.draggables.push(drag);
+      },
+
+      isOverlapping(el1, el2) {
+        const r1 = el1.getBoundingClientRect();
+        const r2 = el2.getBoundingClientRect();
+        return !(r1.right < r2.left || r1.left > r2.right ||
+          r1.bottom < r2.top || r1.top > r2.bottom);
+      },
+
+      // 核心交互逻辑：处理放置和动画
+      handleDrop(e, targetEl, sourceEl, itemData) {
+        if (this.state.isAnimating) return;
+        this.state.isAnimating = true;
+
+        // 1. 创建飞入动画元素
+        const flyingItem = sourceEl.cloneNode(true);
+        const rect = sourceEl.getBoundingClientRect();
+        flyingItem.style.position = 'fixed';
+        flyingItem.style.left = `${rect.left}px`;
+        flyingItem.style.top = `${rect.top}px`;
+        flyingItem.style.margin = '0';
+        flyingItem.style.zIndex = '1000';
+        flyingItem.style.transition = 'all 0.5s ease-out';
+        flyingItem.style.pointerEvents = 'none';
+        document.body.appendChild(flyingItem);
+
+        // 隐藏原始元素，避免视觉双重
+        sourceEl.style.opacity = '0';
+
+        // 2. 计算目标位置 (DropZone中心)
+        const targetRect = targetEl.getBoundingClientRect();
+        const destX = targetRect.left + targetRect.width / 2 - rect.width / 2;
+        const destY = targetRect.top + targetRect.height / 2 - rect.height / 2;
+
+        // 3. 执行动画
+        requestAnimationFrame(() => {
+          flyingItem.style.left = `${destX}px`;
+          flyingItem.style.top = `${destY}px`;
+          flyingItem.style.transform = 'scale(0.8)';
+        });
+
+        // 4. 动画结束后处理逻辑
+        setTimeout(() => {
+          flyingItem.remove();
+          this.checkAnswer(itemData, sourceEl);
+        }, 500);
+      },
+
+      checkAnswer(itemData, sourceEl) {
+        const dropZone = document.getElementById(`drop-zone-3`);
+        const tooltip = document.getElementById(`feedback-tooltip-3`);
+
+        if (itemData.value === this.state.currentData.correctValue) {
+          // 正确
+          gameEngine.playSound('success');
+
+          // 在放置区显示结果
+          dropZone.innerHTML = `
+        <div style="
+          font-size: 36px; 
+          font-weight: bold; 
+          color: #4CAF50; 
+          background: #fff; 
+          padding: 10px 20px; 
+          border-radius: 15px; 
+          box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+          ${itemData.value} cm²
+        </div>
+      `;
+
+          // 播放星星动画
+          const overlay = document.getElementById(`result-overlay-3`);
+          overlay.style.display = 'flex';
+
+          document.getElementById(`next-btn-3`).style.display = 'block';
+
+          // Auto advance
+          setTimeout(() => {
+            const btn = document.getElementById(`next-btn-3`);
+            if (btn && btn.style.display !== 'none') btn.click();
+          }, 1500);
+        } else {
+          // 错误
+          gameEngine.playSound('error');
+          this.state.isAnimating = false; // 允许再次拖拽
+          sourceEl.style.opacity = '1'; // 恢复原卡片显示
+
+          // 错误类型反馈
+          if (itemData.type === 'trap_slant') {
+            tooltip.innerText = "Be careful! To calculate the area, multiply the base by the height";
+            tooltip.style.opacity = '1';
+            setTimeout(() => tooltip.style.opacity = '0', 2000);
+          } else {
+            tooltip.innerText = "Incorrect, please try again!";
+            tooltip.style.opacity = '1';
+            setTimeout(() => tooltip.style.opacity = '0', 2000);
+          }
+
+          gameEngine.showFeedback(dropZone, 'shake');
+        }
+      },
+
+      nextQuestion() {
+        this.state.currentQuestionIndex++;
+        this.loadQuestion();
+      },
+
+      showResult() {
+        document.getElementById(`activity-3`).innerHTML = `
+      ${createActivityHeader('Area Matching Game', 'Completed')}
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
+        <img src="${this.config.assets.starGold}" style="width:150px; margin-bottom:20px;">
+        <h2>Congratulations on completing all challenges!</h2>
+        <button onclick="window.ActivityManager.goHome()" style="
+          margin-top: 30px;
+          padding: 15px 40px;
+          font-size: 24px;
+          background: #2196F3;
+          color: white;
+          border: none;
+          border-radius: 50px;
+          cursor: pointer;
+        ">Return to Home</button>
+      </div>
+    `;
+      },
+
+      destroy() {
+        this.state.draggables.forEach(d => d.destroy());
+        // 清理其他可能存在的定时器或事件
+      }
+    };
+
+    // 启动
+    document.addEventListener('DOMContentLoaded', () => {
+      ActivityManager.show(0);
+    });
+  </script>
+</body>
+
+</html>

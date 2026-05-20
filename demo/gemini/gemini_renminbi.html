@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Grade 2 Math: Learning Chinese Currency (RMB)</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Anime.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <!-- Canvas Confetti (reward effect) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+KuaiLe&display=swap');
+
+    :root {
+      --primary-color: #FF9F1C;
+      --bg-color: #FEF9EF;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .font-cute {
+      font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
+    }
+
+  /* Shared money styles */
+    .money-item {
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      user-select: none;
+    }
+    
+    .money-item:active {
+      transform: scale(0.95);
+    }
+
+  /* Banknote styles */
+    .paper-money {
+      border-radius: 4px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+      border: 2px solid rgba(255,255,255,0.4);
+      overflow: hidden;
+    }
+    
+    .paper-money::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+      pointer-events: none;
+    }
+
+  /* Banknote pattern decorations */
+    .paper-pattern {
+      position: absolute;
+      border: 1px dashed rgba(255,255,255,0.5);
+      top: 5px; bottom: 5px; left: 5px; right: 5px;
+      border-radius: 2px;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 5px;
+      align-items: center;
+    }
+
+  /* Color palette (approximate RMB tones) */
+    .rmb-100 { background: linear-gradient(to right, #e53e3e, #f56565); color: #fff; }
+    .rmb-50 { background: linear-gradient(to right, #319795, #38b2ac); color: #fff; }
+    .rmb-20 { background: linear-gradient(to right, #b7791f, #d69e2e); color: #fff; }
+    .rmb-10 { background: linear-gradient(to right, #3182ce, #4299e1); color: #fff; }
+    .rmb-5 { background: linear-gradient(to right, #805ad5, #9f7aea); color: #fff; }
+    .rmb-1 { background: linear-gradient(to right, #38a169, #48bb78); color: #fff; }
+
+  /* Coin styles */
+    .coin {
+      border-radius: 50%;
+      box-shadow: 2px 3px 4px rgba(0,0,0,0.3), inset 0 0 10px rgba(255,255,255,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    
+    .coin-silver {
+      background: radial-gradient(circle at 30% 30%, #f7fafc, #cbd5e0);
+      border: 3px solid #a0aec0;
+      color: #4a5568;
+    }
+    
+    .coin-gold {
+      background: radial-gradient(circle at 30% 30%, #fefcbf, #ecc94b);
+      border: 3px solid #d69e2e;
+      color: #744210;
+    }
+
+  /* Active nav state */
+    .nav-btn.active {
+      background-color: var(--primary-color);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+  /* Shop shelf animation */
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+      100% { transform: translateY(0px); }
+    }
+    .merchandise {
+      animation: float 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-hidden">
+
+  <!-- Top navigation -->
+  <header class="bg-white shadow-md z-10 p-4">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <span class="text-3xl">💰</span>
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold text-gray-800 font-cute">Learn RMB</h1>
+          <p class="text-xs text-gray-500">Grade 2 Math · Semester 1</p>
+        </div>
+      </div>
+      <div class="hidden md:block bg-yellow-100 px-3 py-1 rounded-full text-yellow-800 text-sm font-bold">
+        🌟 Goal: recognize values and practice conversions
+      </div>
+    </div>
+  </header>
+
+  <!-- Mode switch -->
+  <nav class="bg-white border-b border-gray-100 py-2 overflow-x-auto">
+    <div class="max-w-4xl mx-auto flex justify-around gap-2 px-2 min-w-max">
+      <button onclick="switchTab('learn')" id="tab-learn" class="nav-btn active px-6 py-2 rounded-full font-bold text-gray-600 transition-all duration-300">
+        👀 Learn
+      </button>
+      <button onclick="switchTab('convert')" id="tab-convert" class="nav-btn px-6 py-2 rounded-full font-bold text-gray-600 transition-all duration-300">
+        🔄 Convert
+      </button>
+      <button onclick="switchTab('shop')" id="tab-shop" class="nav-btn px-6 py-2 rounded-full font-bold text-gray-600 transition-all duration-300">
+        🛒 Shop
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="flex-grow relative overflow-y-auto bg-orange-50 p-4">
+    <div class="max-w-4xl mx-auto h-full">
+
+      <!-- 1) Learn module -->
+      <section id="view-learn" class="space-y-6">
+        <div class="bg-white p-4 rounded-2xl shadow-sm text-center">
+          <p class="text-lg text-gray-700 font-cute">Tap the money to hear what it says!</p>
+        </div>
+        
+        <!-- Banknotes -->
+        <h3 class="font-bold text-gray-500 ml-2">Banknotes</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <!-- Banknote tiles -->
+          <div onclick="speak('I am 100 yuan. I am red and the largest value!')" class="flex flex-col items-center group">
+            <div class="paper-money rmb-100 w-36 h-20 md:w-48 md:h-24 relative money-item">
+              <div class="paper-pattern">
+                <span class="text-xs opacity-80">ZHONGGUO</span>
+                <span class="text-2xl md:text-3xl">100</span>
+              </div>
+              <div class="absolute right-2 bottom-2 text-xs opacity-70">One Hundred Yuan</div>
+            </div>
+          </div>
+
+          <div onclick="speak('I am 50 yuan. I am green!')" class="flex flex-col items-center">
+            <div class="paper-money rmb-50 w-32 h-18 md:w-44 md:h-22 relative money-item">
+              <div class="paper-pattern">
+                <span class="text-xs opacity-80">ZHONGGUO</span>
+                <span class="text-xl md:text-2xl">50</span>
+              </div>
+              <div class="absolute right-2 bottom-2 text-xs opacity-70">Fifty Yuan</div>
+            </div>
+          </div>
+
+          <div onclick="speak('I am 20 yuan. I am brown!')" class="flex flex-col items-center">
+            <div class="paper-money rmb-20 w-32 h-18 md:w-44 md:h-22 relative money-item">
+              <div class="paper-pattern">
+                <span class="text-xs opacity-80">ZHONGGUO</span>
+                <span class="text-xl md:text-2xl">20</span>
+              </div>
+              <div class="absolute right-2 bottom-2 text-xs opacity-70">Twenty Yuan</div>
+            </div>
+          </div>
+          
+          <div onclick="speak('I am 10 yuan. I am blue!')" class="flex flex-col items-center">
+            <div class="paper-money rmb-10 w-28 h-16 md:w-40 md:h-20 relative money-item">
+              <div class="paper-pattern">
+                <span class="text-xs opacity-80">ZHONGGUO</span>
+                <span class="text-xl md:text-2xl">10</span>
+              </div>
+              <div class="absolute right-2 bottom-2 text-xs opacity-70">Ten Yuan</div>
+            </div>
+          </div>
+
+          <div onclick="speak('I am 5 yuan. I am purple!')" class="flex flex-col items-center">
+            <div class="paper-money rmb-5 w-28 h-16 md:w-40 md:h-20 relative money-item">
+              <div class="paper-pattern">
+                <span class="text-xs opacity-80">ZHONGGUO</span>
+                <span class="text-xl md:text-2xl">5</span>
+              </div>
+              <div class="absolute right-2 bottom-2 text-xs opacity-70">Five Yuan</div>
+            </div>
+          </div>
+
+          <div onclick="speak('I am the 1 yuan banknote. I am also green, but smaller.')" class="flex flex-col items-center">
+            <div class="paper-money rmb-1 w-24 h-14 md:w-36 md:h-18 relative money-item">
+              <div class="paper-pattern">
+                <span class="text-xs opacity-80">ZHONGGUO</span>
+                <span class="text-lg md:text-xl">1</span>
+              </div>
+              <div class="absolute right-2 bottom-2 text-xs opacity-70">One Yuan</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coins -->
+        <h3 class="font-bold text-gray-500 ml-2 mt-6">Coins</h3>
+        <div class="flex flex-wrap justify-around gap-4 bg-white p-6 rounded-xl shadow-sm">
+          <div onclick="speak('I am the 1 yuan coin. I am silver and the largest coin.')" class="flex flex-col items-center gap-2">
+            <div class="coin coin-silver w-16 h-16 text-xl money-item">1 yuan</div>
+          </div>
+          <div onclick="speak('I am the 5 jiao coin. I am gold!')" class="flex flex-col items-center gap-2">
+            <div class="coin coin-gold w-14 h-14 text-lg money-item">5 jiao</div>
+          </div>
+          <div onclick="speak('I am the 1 jiao coin. I am silver and the smallest coin.')" class="flex flex-col items-center gap-2">
+            <div class="coin coin-silver w-10 h-10 text-sm money-item">1 jiao</div>
+          </div>
+        </div>
+        
+        <!-- Speech bubble -->
+        <div id="speech-bubble" class="fixed bottom-4 left-4 right-4 bg-gray-800 text-white p-4 rounded-xl shadow-lg transform translate-y-32 transition-transform duration-300 flex items-center gap-3 z-50">
+          <div class="text-3xl">👩‍🏫</div>
+          <p id="speech-text" class="text-sm md:text-base font-bold">Tap the money to learn it!</p>
+        </div>
+      </section>
+
+      <!-- 2) Convert module -->
+      <section id="view-convert" class="hidden h-full flex flex-col items-center justify-center space-y-8">
+        <div class="text-center space-y-2">
+          <h2 class="text-2xl font-cute text-gray-800">The Secret of Yuan and Jiao</h2>
+          <p class="text-gray-500">Tap the 1 yuan coin on the left. What happens?</p>
+        </div>
+
+        <div class="flex items-center justify-center gap-4 md:gap-12 w-full">
+          <!-- Source: 1 yuan -->
+          <div id="source-yuan" class="cursor-pointer group relative">
+            <div class="coin coin-silver w-24 h-24 text-2xl money-item shadow-xl group-hover:scale-105">1 yuan</div>
+            <div class="absolute -bottom-8 w-full text-center text-gray-500 font-bold">Tap me!</div>
+          </div>
+
+          <!-- Equals sign -->
+          <div class="text-4xl font-bold text-gray-400">=</div>
+
+          <!-- Target: 10 jiao -->
+          <div id="target-jiao" class="grid grid-cols-5 gap-2 w-64 h-32 p-2 bg-white rounded-xl shadow-inner border border-gray-100 place-items-center">
+            <!-- Initially empty; filled by JS -->
+          </div>
+        </div>
+
+        <div id="convert-feedback" class="text-xl font-bold text-primary-600 opacity-0 transform transition-all">
+          1 yuan = 10 jiao
+        </div>
+
+        <button onclick="resetConvert()" class="mt-8 bg-gray-200 text-gray-600 px-6 py-2 rounded-full hover:bg-gray-300 transition">Play again</button>
+      </section>
+
+      <!-- 3) Shop module -->
+      <section id="view-shop" class="hidden h-full flex flex-col">
+        <!-- Item panel -->
+        <div class="bg-white p-4 rounded-xl shadow-sm mb-4 flex items-center justify-between border-2 border-orange-100">
+          <div class="flex items-center gap-4">
+            <div class="text-5xl merchandise" id="shop-item-icon">✏️</div>
+            <div>
+              <h3 class="text-gray-500 text-sm">Please buy this item:</h3>
+              <p class="text-2xl font-bold font-cute" id="shop-item-name">Pencil</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-sm text-gray-400">Price</p>
+            <p class="text-3xl font-bold text-red-500 font-mono"><span id="shop-item-price">1</span><span class="text-sm ml-1"> yuan</span></p>
+          </div>
+        </div>
+
+        <!-- Payment zone (checkout) -->
+        <div class="flex-grow bg-blue-50 rounded-xl border-2 border-dashed border-blue-200 p-4 relative mb-4 flex flex-col items-center justify-center transition-colors" id="payment-zone">
+          <p class="text-gray-400 text-sm mb-2 absolute top-2 left-4">Drop money here to pay 👇</p>
+          
+          <div id="tray-content" class="flex flex-wrap gap-2 justify-center min-h-[60px] w-full">
+            <!-- Paid money appears here -->
+          </div>
+          
+          <div class="mt-4 text-blue-800 font-bold">
+            Paid so far: <span id="current-total">0</span> yuan
+          </div>
+        </div>
+
+        <!-- Wallet -->
+        <div class="bg-gray-800 rounded-t-2xl p-4 -mx-4 md:rounded-2xl md:mx-0">
+          <p class="text-white text-xs mb-3 flex justify-between">
+            <span>My wallet (tap to add)</span>
+            <button onclick="clearTray()" class="text-orange-300 hover:text-white underline">Clear</button>
+          </p>
+          <div class="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            <!-- Money in wallet -->
+            <button onclick="addToTray(10, 'note')" class="flex-shrink-0 paper-money rmb-10 w-20 h-12 flex items-center justify-center text-sm transform hover:-translate-y-1">10 yuan</button>
+            <button onclick="addToTray(5, 'note')" class="flex-shrink-0 paper-money rmb-5 w-20 h-12 flex items-center justify-center text-sm transform hover:-translate-y-1">5 yuan</button>
+            <button onclick="addToTray(1, 'coin')" class="flex-shrink-0 coin coin-silver w-12 h-12 text-sm transform hover:-translate-y-1">1 yuan</button>
+            <button onclick="addToTray(1, 'coin')" class="flex-shrink-0 coin coin-silver w-12 h-12 text-sm transform hover:-translate-y-1">1 yuan</button>
+            <button onclick="addToTray(1, 'coin')" class="flex-shrink-0 coin coin-silver w-12 h-12 text-sm transform hover:-translate-y-1">1 yuan</button>
+            <button onclick="addToTray(1, 'coin')" class="flex-shrink-0 coin coin-silver w-12 h-12 text-sm transform hover:-translate-y-1">1 yuan</button>
+            <button onclick="addToTray(1, 'coin')" class="flex-shrink-0 coin coin-silver w-12 h-12 text-sm transform hover:-translate-y-1">1 yuan</button>
+          </div>
+        </div>
+        
+        <button onclick="checkPayment()" class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-3 rounded-xl shadow-lg active:scale-95 transition-transform">
+          Confirm payment ✅
+        </button>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    // --- State ---
+    const state = {
+      currentTab: 'learn',
+      shop: {
+        targetPrice: 0,
+        currentPaid: 0,
+        items: [
+          { name: "Eraser", price: 1, icon: "🟦" },
+          { name: "Pencil", price: 2, icon: "✏️" },
+          { name: "Notebook", price: 5, icon: "📓" },
+          { name: "Colored pencils", price: 12, icon: "🖍️" },
+          { name: "Pencil case", price: 15, icon: "👝" },
+          { name: "Teddy bear", price: 23, icon: "🧸" }
+        ]
+      }
+    };
+
+    // --- Tab switching ---
+    function switchTab(tabName) {
+      // Style toggle
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      
+      // View toggle
+      ['learn', 'convert', 'shop'].forEach(section => {
+        const el = document.getElementById(`view-${section}`);
+        if(section === tabName) {
+          el.classList.remove('hidden');
+          anime({
+            targets: el,
+            opacity: [0, 1],
+            translateY: [20, 0],
+            duration: 500,
+            easing: 'easeOutQuad'
+          });
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+
+      // Module init
+      if(tabName === 'shop') initShop();
+      if(tabName === 'convert') resetConvert();
+    }
+
+    // --- Learn module ---
+    let speechTimeout;
+    function speak(text) {
+      const bubble = document.getElementById('speech-bubble');
+      const txt = document.getElementById('speech-text');
+      
+      txt.innerText = text;
+      bubble.classList.remove('translate-y-32');
+      
+      // Basic speech synthesis (if supported)
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 1;
+        window.speechSynthesis.speak(utterance);
+      }
+
+      clearTimeout(speechTimeout);
+      speechTimeout = setTimeout(() => {
+        bubble.classList.add('translate-y-32');
+      }, 4000);
+    }
+
+  // --- Convert module ---
+    const convertSource = document.getElementById('source-yuan');
+    const convertTarget = document.getElementById('target-jiao');
+    const convertFeedback = document.getElementById('convert-feedback');
+    let hasConverted = false;
+
+    convertSource.addEventListener('click', () => {
+      if (hasConverted) return;
+      hasConverted = true;
+
+      // Animation: big coin disappears
+      anime({
+        targets: '#source-yuan .coin',
+        scale: [1, 0],
+        opacity: [1, 0],
+        duration: 500,
+        easing: 'easeInBack'
+      });
+
+      // Animation: create 10 small jiao
+      convertTarget.innerHTML = '';
+      for(let i=0; i<10; i++) {
+        const jiao = document.createElement('div');
+        jiao.className = 'coin coin-silver w-10 h-10 text-xs money-item opacity-0 transform scale-0';
+        jiao.innerText = '1 jiao';
+        convertTarget.appendChild(jiao);
+      }
+
+      anime({
+        targets: '#target-jiao .coin',
+        scale: [0, 1],
+        opacity: [0, 1],
+        delay: anime.stagger(100, {start: 300}), // appear one by one
+        duration: 800,
+        easing: 'spring(1, 80, 10, 0)'
+      });
+
+      // Show text feedback
+      setTimeout(() => {
+        convertFeedback.style.opacity = '1';
+        speak('Look! 1 yuan can be converted into ten 1 jiao coins!');
+      }, 1500);
+    });
+
+    function resetConvert() {
+      hasConverted = false;
+      convertFeedback.style.opacity = '0';
+      convertTarget.innerHTML = '';
+      anime.set('#source-yuan .coin', { scale: 1, opacity: 1 });
+    }
+
+    // --- Shop module ---
+    function initShop() {
+      clearTray();
+      // Pick a random item
+      const item = state.shop.items[Math.floor(Math.random() * state.shop.items.length)];
+      state.shop.targetPrice = item.price;
+      
+      document.getElementById('shop-item-icon').innerText = item.icon;
+      document.getElementById('shop-item-name').innerText = item.name;
+      document.getElementById('shop-item-price').innerText = item.price;
+      
+      speak(`I want to buy a ${item.name}. It costs ${item.price} yuan. Please help me pay!`);
+    }
+
+    function addToTray(value, type) {
+      state.shop.currentPaid += value;
+      updateTotalDisplay();
+
+      // Create visual element
+      const el = document.createElement('div');
+      if (type === 'note') {
+        el.className = `paper-money rmb-${value} w-16 h-10 flex items-center justify-center text-xs shadow-sm`;
+        el.innerText = value + ' yuan';
+      } else {
+        el.className = `coin coin-silver w-10 h-10 text-xs flex items-center justify-center shadow-sm`;
+        el.innerText = value + ' yuan';
+      }
+      
+      // Add to tray
+      document.getElementById('tray-content').appendChild(el);
+
+      // Pop-in animation
+      anime({
+        targets: el,
+        scale: [0, 1],
+        duration: 400,
+        easing: 'easeOutElastic(1, .8)'
+      });
+    }
+
+    function clearTray() {
+      state.shop.currentPaid = 0;
+      document.getElementById('tray-content').innerHTML = '';
+      updateTotalDisplay();
+      document.getElementById('payment-zone').classList.remove('bg-red-100', 'bg-green-100');
+    }
+
+    function updateTotalDisplay() {
+      document.getElementById('current-total').innerText = state.shop.currentPaid;
+    }
+
+    function checkPayment() {
+      const zone = document.getElementById('payment-zone');
+      
+      if (state.shop.currentPaid === state.shop.targetPrice) {
+        // Success
+        zone.classList.remove('bg-blue-50');
+        zone.classList.add('bg-green-100');
+        speak('Awesome! You paid the exact amount!');
+        
+        // Confetti
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+
+        // Next item after a short delay
+        setTimeout(() => {
+          zone.classList.remove('bg-green-100');
+          zone.classList.add('bg-blue-50');
+          initShop();
+        }, 3000);
+
+      } else if (state.shop.currentPaid < state.shop.targetPrice) {
+        // Not enough
+        zone.classList.add('bg-red-100');
+        anime({
+          targets: zone,
+          translateX: [-10, 10, -10, 10, 0],
+          duration: 400,
+          easing: 'easeInOutSine'
+        });
+        speak('Not enough money. Add a little more!');
+        setTimeout(() => zone.classList.remove('bg-red-100'), 1000);
+        
+      } else {
+        // Too much
+        zone.classList.add('bg-red-100');
+        anime({
+          targets: zone,
+          translateY: [-5, 5, -5, 5, 0],
+          duration: 400,
+          easing: 'easeInOutSine'
+        });
+        speak('That is too much. Try to make the exact price!');
+        setTimeout(() => zone.classList.remove('bg-red-100'), 1000);
+      }
+    }
+
+    // Init
+    window.addEventListener('load', () => {
+      // Default: first tab
+      speak("Welcome to the RMB playground! Let's learn the money first.");
+    });
+
+  </script>
+</body>
+</html>

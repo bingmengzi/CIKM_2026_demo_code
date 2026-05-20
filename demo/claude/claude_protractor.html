@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📐 Interactive Protractor - Learn to Measure Angles</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    
+    .canvas-container {
+      position: relative;
+      background: #f8fafc;
+      touch-action: none;
+    }
+    
+    #mainCanvas {
+      display: block;
+      cursor: crosshair;
+      width: 100%;
+      height: 500px;
+    }
+    
+    .protractor {
+      position: absolute;
+      cursor: move;
+      transition: opacity 0.3s;
+    }
+    
+    .protractor.dragging {
+      opacity: 0.8;
+    }
+    
+    .control-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .control-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-secondary {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+    }
+    
+    .btn-warning {
+      background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      color: white;
+    }
+    
+    .mode-badge {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .angle-display {
+      font-size: 48px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .instruction-box {
+      background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .practice-card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-top: 20px;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .floating {
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+  <!-- Title -->
+    <div class="text-center mb-6">
+      <h1 class="text-5xl font-bold text-white mb-3 floating">
+  📐 Interactive Protractor
+      </h1>
+      <p class="text-xl text-white opacity-90">
+  Learn how to use a protractor to measure angles
+      </p>
+    </div>
+    
+  <!-- Main card -->
+    <div class="card">
+  <!-- Control panel -->
+      <div class="p-6 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <span class="mode-badge bg-purple-500 text-white">
+              Mode: <span id="currentMode">Free draw</span>
+            </span>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-600">Current angle:</span>
+              <span class="angle-display" id="angleDisplay">0°</span>
+            </div>
+          </div>
+          
+          <div class="flex flex-wrap gap-2">
+            <button class="control-btn btn-primary" onclick="switchMode('free')">
+              ✏️ Free draw
+            </button>
+            <button class="control-btn btn-success" onclick="switchMode('practice')">
+              🎯 Practice
+            </button>
+            <button class="control-btn btn-warning" onclick="clearCanvas()">
+              🗑️ Clear
+            </button>
+            <button class="control-btn btn-secondary" onclick="toggleProtractor()">
+              <span id="protractorToggle">👁️ Show protractor</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+  <!-- Instructions -->
+      <div class="p-6">
+        <div class="instruction-box" id="instructionBox">
+          <h3 class="text-xl font-bold text-purple-800 mb-2">📖 How to use</h3>
+          <p class="text-purple-700" id="instructionText">
+            1️⃣ Click three times on the canvas to draw an angle (vertex → ray 1 → ray 2)<br>
+            2️⃣ Click “Show protractor”<br>
+            3️⃣ Drag the protractor so its center aligns with the angle’s vertex<br>
+            4️⃣ Rotate the protractor (use the rotate buttons) so the 0° baseline aligns with one ray<br>
+            5️⃣ Read the degree value where the other ray meets the scale
+          </p>
+        </div>
+      </div>
+      
+  <!-- Canvas -->
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="mainCanvas" width="1000" height="500"></canvas>
+        
+  <!-- Protractor -->
+        <div class="protractor" id="protractor" style="display: none;">
+          <canvas id="protractorCanvas" width="400" height="220"></canvas>
+          <div style="position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;">
+            <button class="control-btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="rotateProtractor(-5)">
+              ↶ -5°
+            </button>
+            <button class="control-btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="rotateProtractor(-1)">
+              ↶ -1°
+            </button>
+            <button class="control-btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="rotateProtractor(1)">
+              ↷ +1°
+            </button>
+            <button class="control-btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="rotateProtractor(5)">
+              ↷ +5°
+            </button>
+          </div>
+        </div>
+      </div>
+      
+  <!-- Practice -->
+      <div class="p-6" id="practiceArea" style="display: none;">
+        <div class="practice-card">
+          <h3 class="text-2xl font-bold text-purple-800 mb-4">🎯 Practice</h3>
+          <div id="practiceContent"></div>
+        </div>
+      </div>
+      
+  <!-- Stats -->
+      <div class="p-6 bg-gray-50 text-center">
+        <div class="flex justify-center gap-8">
+          <div>
+            <div class="text-3xl font-bold text-purple-600" id="correctCount">0</div>
+            <div class="text-gray-600">Correct</div>
+          </div>
+          <div>
+            <div class="text-3xl font-bold text-blue-600" id="totalCount">0</div>
+            <div class="text-gray-600">Total</div>
+          </div>
+          <div>
+            <div class="text-3xl font-bold text-green-600" id="accuracy">0%</div>
+            <div class="text-gray-600">Accuracy</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+  // Global variables
+    let canvas, ctx;
+    let protractorCanvas, protractorCtx;
+  let mode = 'free'; // 'free' or 'practice'
+    let points = [];
+    let currentAngle = 0;
+    let protractorVisible = false;
+    let protractorX = 200;
+    let protractorY = 250;
+    let protractorRotation = 0;
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    
+  // Practice state
+    let currentPracticeAngle = 0;
+    let correctCount = 0;
+    let totalCount = 0;
+    
+  // Init
+    window.onload = function() {
+      canvas = document.getElementById('mainCanvas');
+      ctx = canvas.getContext('2d');
+      protractorCanvas = document.getElementById('protractorCanvas');
+      protractorCtx = protractorCanvas.getContext('2d');
+      
+  // Size the canvas
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      
+  // Draw the protractor
+      drawProtractor();
+      
+  // Event listeners
+      canvas.addEventListener('click', handleCanvasClick);
+      
+      const protractor = document.getElementById('protractor');
+      protractor.addEventListener('mousedown', startDrag);
+      document.addEventListener('mousemove', drag);
+      document.addEventListener('mouseup', endDrag);
+      
+  // Touch events
+      protractor.addEventListener('touchstart', startDrag);
+      document.addEventListener('touchmove', drag);
+      document.addEventListener('touchend', endDrag);
+    };
+    
+    function resizeCanvas() {
+      const container = document.getElementById('canvasContainer');
+      const rect = container.getBoundingClientRect();
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = '500px';
+      redraw();
+    }
+    
+    function drawProtractor() {
+      const centerX = 200;
+      const centerY = 200;
+      const radius = 180;
+      
+      protractorCtx.clearRect(0, 0, protractorCanvas.width, protractorCanvas.height);
+      
+  // Semi-transparent background
+      protractorCtx.fillStyle = 'rgba(255, 255, 200, 0.7)';
+      protractorCtx.beginPath();
+      protractorCtx.arc(centerX, centerY, radius, Math.PI, 0);
+      protractorCtx.lineTo(centerX, centerY);
+      protractorCtx.fill();
+      
+  // Outer border
+      protractorCtx.strokeStyle = '#333';
+      protractorCtx.lineWidth = 3;
+      protractorCtx.beginPath();
+      protractorCtx.arc(centerX, centerY, radius, Math.PI, 0);
+      protractorCtx.stroke();
+      
+  // Baseline
+      protractorCtx.beginPath();
+      protractorCtx.moveTo(centerX - radius, centerY);
+      protractorCtx.lineTo(centerX + radius, centerY);
+      protractorCtx.stroke();
+      
+  // Tick marks and numbers
+      for (let angle = 0; angle <= 180; angle++) {
+        const radian = (Math.PI / 180) * angle;
+        const x1 = centerX + Math.cos(Math.PI - radian) * radius;
+        const y1 = centerY + Math.sin(Math.PI - radian) * radius;
+        
+        let length;
+        if (angle % 10 === 0) {
+          length = 20;
+          protractorCtx.lineWidth = 2;
+        } else if (angle % 5 === 0) {
+          length = 12;
+          protractorCtx.lineWidth = 1.5;
+        } else {
+          length = 8;
+          protractorCtx.lineWidth = 1;
+        }
+        
+        const x2 = centerX + Math.cos(Math.PI - radian) * (radius - length);
+        const y2 = centerY + Math.sin(Math.PI - radian) * (radius - length);
+        
+        protractorCtx.strokeStyle = '#333';
+        protractorCtx.beginPath();
+        protractorCtx.moveTo(x1, y1);
+        protractorCtx.lineTo(x2, y2);
+        protractorCtx.stroke();
+        
+  // Numbers
+        if (angle % 10 === 0) {
+          const textX = centerX + Math.cos(Math.PI - radian) * (radius - 35);
+          const textY = centerY + Math.sin(Math.PI - radian) * (radius - 35);
+          
+          protractorCtx.fillStyle = '#000';
+          protractorCtx.font = 'bold 14px Arial';
+          protractorCtx.textAlign = 'center';
+          protractorCtx.textBaseline = 'middle';
+          protractorCtx.fillText(angle, textX, textY);
+        }
+      }
+      
+  // Center point
+      protractorCtx.fillStyle = 'red';
+      protractorCtx.beginPath();
+      protractorCtx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+      protractorCtx.fill();
+      
+  // Crosshair
+      protractorCtx.strokeStyle = 'red';
+      protractorCtx.lineWidth = 1;
+      protractorCtx.beginPath();
+      protractorCtx.moveTo(centerX - 10, centerY);
+      protractorCtx.lineTo(centerX + 10, centerY);
+      protractorCtx.moveTo(centerX, centerY - 10);
+      protractorCtx.lineTo(centerX, centerY + 10);
+      protractorCtx.stroke();
+    }
+    
+    function handleCanvasClick(e) {
+      if (mode === 'practice') return;
+      
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      
+      points.push({x, y});
+      
+      if (points.length === 3) {
+        calculateAngle();
+        document.getElementById('instructionText').innerHTML = 
+          '✅ Angle drawn! Click “Show protractor” to start measuring.';
+      } else {
+        document.getElementById('instructionText').innerHTML = 
+          `Point ${points.length}/3 set. Keep clicking...`;
+      }
+      
+      redraw();
+    }
+    
+    function calculateAngle() {
+      if (points.length !== 3) return;
+      
+      const [vertex, p1, p2] = points;
+      
+      const angle1 = Math.atan2(p1.y - vertex.y, p1.x - vertex.x);
+      const angle2 = Math.atan2(p2.y - vertex.y, p2.x - vertex.x);
+      
+      let diff = (angle2 - angle1) * (180 / Math.PI);
+      if (diff < 0) diff += 360;
+      if (diff > 180) diff = 360 - diff;
+      
+      currentAngle = Math.round(diff);
+      document.getElementById('angleDisplay').textContent = currentAngle + '°';
+    }
+    
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+  // Draw points
+      points.forEach((point, index) => {
+        ctx.fillStyle = index === 0 ? '#f59e0b' : '#3b82f6';
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 14px Arial';
+  ctx.fillText(index === 0 ? 'Vertex' : `Ray ${index}`, point.x + 10, point.y - 10);
+      });
+      
+  // Draw the angle
+      if (points.length === 3) {
+        const [vertex, p1, p2] = points;
+        
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(vertex.x, vertex.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(vertex.x, vertex.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        
+  // Draw the arc
+        const angle1 = Math.atan2(p1.y - vertex.y, p1.x - vertex.x);
+        const angle2 = Math.atan2(p2.y - vertex.y, p2.x - vertex.x);
+        
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(vertex.x, vertex.y, 40, angle1, angle2, angle2 < angle1);
+        ctx.stroke();
+      }
+    }
+    
+    function switchMode(newMode) {
+      mode = newMode;
+      document.getElementById('currentMode').textContent =
+        newMode === 'free' ? 'Free draw' : 'Practice';
+      
+      if (newMode === 'practice') {
+        document.getElementById('practiceArea').style.display = 'block';
+        document.getElementById('instructionBox').style.display = 'none';
+        generatePractice();
+      } else {
+        document.getElementById('practiceArea').style.display = 'none';
+        document.getElementById('instructionBox').style.display = 'block';
+        clearCanvas();
+      }
+    }
+    
+    function generatePractice() {
+  currentPracticeAngle = Math.floor(Math.random() * 160) + 10; // 10–170 degrees
+      
+  // Draw an angle on the canvas
+      points = [];
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      
+  points.push({x: centerX, y: centerY}); // vertex
+  points.push({x: centerX + 200, y: centerY}); // first ray (horizontal)
+      
+  // Second ray based on the target angle
+      const radian = (currentPracticeAngle * Math.PI) / 180;
+      points.push({
+        x: centerX + 200 * Math.cos(radian),
+        y: centerY - 200 * Math.sin(radian)
+      });
+      
+      redraw();
+      
+      document.getElementById('practiceContent').innerHTML = `
+        <p class="text-lg mb-4">Use the protractor to measure the angle below:</p>
+        <div class="flex gap-4 items-center">
+          <input type="number" id="answerInput" class="border-2 border-purple-300 rounded-lg px-4 py-2 text-xl w-32"
+                 placeholder="Degrees" min="0" max="180">
+          <span class="text-xl">°</span>
+          <button class="control-btn btn-success" onclick="checkAnswer()">
+            ✓ Submit
+          </button>
+        </div>
+        <div id="feedback" class="mt-4 text-lg font-bold"></div>
+      `;
+      
+      protractorVisible = false;
+      document.getElementById('protractor').style.display = 'none';
+  document.getElementById('protractorToggle').textContent = '👁️ Show protractor';
+    }
+    
+    function checkAnswer() {
+      const answer = parseInt(document.getElementById('answerInput').value);
+      const feedback = document.getElementById('feedback');
+      
+      if (isNaN(answer)) {
+  feedback.innerHTML = '⚠️ Please enter a number!';
+        feedback.style.color = '#f59e0b';
+        return;
+      }
+      
+      totalCount++;
+      
+      const diff = Math.abs(answer - currentPracticeAngle);
+      
+      if (diff === 0) {
+  correctCount++;
+  feedback.innerHTML = '🎉 Exactly right! Great job!';
+        feedback.style.color = '#10b981';
+        anime({
+          targets: '#feedback',
+          scale: [0, 1],
+          duration: 500,
+          easing: 'easeOutElastic(1, .5)'
+        });
+      } else if (diff <= 2) {
+  correctCount++;
+  feedback.innerHTML = `👍 Very close! The correct answer is ${currentPracticeAngle}°`;
+        feedback.style.color = '#10b981';
+      } else if (diff <= 5) {
+  feedback.innerHTML = `😊 Not bad! The correct answer is ${currentPracticeAngle}°. Keep it up!`;
+        feedback.style.color = '#f59e0b';
+      } else {
+  feedback.innerHTML = `💪 The correct answer is ${currentPracticeAngle}°. Try again!`;
+        feedback.style.color = '#ef4444';
+      }
+      
+      updateStats();
+      
+      setTimeout(() => {
+        generatePractice();
+      }, 2000);
+    }
+    
+    function updateStats() {
+      document.getElementById('correctCount').textContent = correctCount;
+      document.getElementById('totalCount').textContent = totalCount;
+      const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+      document.getElementById('accuracy').textContent = accuracy + '%';
+    }
+    
+    function clearCanvas() {
+      points = [];
+      currentAngle = 0;
+      document.getElementById('angleDisplay').textContent = '0°';
+      document.getElementById('instructionText').innerHTML =
+        '1️⃣ Click three times on the canvas to draw an angle (vertex → ray 1 → ray 2)<br>' +
+        '2️⃣ Click “Show protractor”<br>' +
+        '3️⃣ Drag the protractor so its center aligns with the angle’s vertex<br>' +
+        '4️⃣ Rotate the protractor so the 0° baseline aligns with one ray<br>' +
+        '5️⃣ Read the degree value where the other ray meets the scale';
+      redraw();
+    }
+    
+    function toggleProtractor() {
+      protractorVisible = !protractorVisible;
+      const protractor = document.getElementById('protractor');
+      
+      if (protractorVisible) {
+        protractor.style.display = 'block';
+  document.getElementById('protractorToggle').textContent = '👁️ Hide protractor';
+        
+  // If an angle exists, snap to the vertex
+        if (points.length === 3) {
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = rect.width / canvas.width;
+          const scaleY = rect.height / canvas.height;
+          protractorX = points[0].x * scaleX - 200;
+          protractorY = points[0].y * scaleY - 200;
+          updateProtractorPosition();
+        }
+        
+        anime({
+          targets: '#protractor',
+          scale: [0, 1],
+          duration: 500,
+          easing: 'easeOutElastic(1, .5)'
+        });
+      } else {
+        protractor.style.display = 'none';
+  document.getElementById('protractorToggle').textContent = '👁️ Show protractor';
+      }
+    }
+    
+    function rotateProtractor(degrees) {
+      protractorRotation += degrees;
+      updateProtractorPosition();
+    }
+    
+    function updateProtractorPosition() {
+      const protractor = document.getElementById('protractor');
+      protractor.style.left = protractorX + 'px';
+      protractor.style.top = protractorY + 'px';
+      protractor.style.transform = `rotate(${protractorRotation}deg)`;
+    }
+    
+    function startDrag(e) {
+      e.preventDefault();
+      isDragging = true;
+      
+      const protractor = document.getElementById('protractor');
+      protractor.classList.add('dragging');
+      
+      const rect = protractor.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      dragOffsetX = clientX - rect.left;
+      dragOffsetY = clientY - rect.top;
+    }
+    
+    function drag(e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      const container = document.getElementById('canvasContainer');
+      const containerRect = container.getBoundingClientRect();
+      
+      protractorX = clientX - containerRect.left - dragOffsetX;
+      protractorY = clientY - containerRect.top - dragOffsetY;
+      
+      updateProtractorPosition();
+    }
+    
+    function endDrag() {
+      if (isDragging) {
+        isDragging = false;
+        const protractor = document.getElementById('protractor');
+        protractor.classList.remove('dragging');
+      }
+    }
+  </script>
+</body>
+</html>

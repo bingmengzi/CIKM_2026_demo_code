@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Amazing Time Factory</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f0f4f8;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+
+    #app-container {
+      width: 1920px;
+      height: 1080px;
+      background: #fff;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform-origin: top left;
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .page.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Common Component Styles */
+    .activity-header {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      z-index: 10;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 2px solid white;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 18px;
+    }
+
+    .back-btn:hover {
+      background: white;
+      color: #667eea;
+    }
+
+    .progress {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .activity-content {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: auto;
+    }
+
+    .activity-footer {
+      height: 80px;
+      min-height: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .next-btn {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      border: none;
+      color: white;
+      padding: 15px 50px;
+      border-radius: 30px;
+      font-size: 22px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .next-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .next-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Feedback Animations */
+    @keyframes correct-pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    @keyframes wrong-shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-10px);
+      }
+
+      75% {
+        transform: translateX(10px);
+      }
+    }
+
+    .feedback-correct {
+      animation: correct-pulse 0.5s;
+    }
+
+    .feedback-wrong {
+      animation: wrong-shake 0.5s;
+    }
+  </style>
+  <!-- Three.js for 3D Geometry Activities -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- analog-clock Component (ES Module) -->
+  <script type="module">
+    // Register component to ActivityManager, ensure waiting for component to load
+    if (window.ActivityManager) {
+      ActivityManager.registerComponent('analog-clock-component');
+    }
+    import './analog-clock.js';
+    console.log('[Component] analog-clock component loaded');
+  </script>
+</head>
+
+<body>
+  <div id="app-container">
+    <div id="home-page" class="page active"></div>
+    <div id="activity-1" class="page"></div>
+    <div id="activity-2" class="page"></div>
+    <div id="activity-3" class="page"></div>
+  </div>
+  <script>
+    // ========== TeachingGameEngine (Drag Engine) ==========
+    class TeachingGameEngine {
+      constructor() {
+        this.draggables = [];
+        this.dropZones = [];
+        this.events = {};
+        this.isMobile = 'ontouchstart' in window;
+        this._initStyle();
+      }
+      makeDraggable(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { revert: true, targetGroup: 'default', ...options };
+        const offsetParent = element.offsetParent || document.body;
+        const parentRect = offsetParent.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(element);
+        if (computedStyle.position === 'static') {
+          element.style.position = 'absolute';
+          element.style.left = (rect.left - parentRect.left) + 'px';
+          element.style.top = (rect.top - parentRect.top) + 'px';
+        }
+        config.initialX = parseFloat(element.style.left) || 0;
+        config.initialY = parseFloat(element.style.top) || 0;
+        config.zIndex = computedStyle.zIndex;
+        this._bindDragEvents(element, config);
+        element.style.cursor = 'grab';
+        element.classList.add('tge-draggable');
+      }
+      makeDropZone(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { group: 'default', accept: null, ...options };
+        element.classList.add('tge-dropzone');
+        this.dropZones.push({ element, config });
+      }
+      playSound(type) { console.log(`[Audio] Playing ${type} sound`); }
+      showFeedback(el, type = 'pulse') {
+        const element = this._getElement(el);
+        if (!element) return;
+        element.classList.remove('tge-anim-shake', 'tge-anim-pulse');
+        void element.offsetWidth;
+        element.classList.add(`tge-anim-${type}`);
+        setTimeout(() => element.classList.remove(`tge-anim-${type}`), 800);
+      }
+      on(eventName, callback) {
+        if (!this.events[eventName]) this.events[eventName] = [];
+        this.events[eventName].push(callback);
+      }
+      _getElement(el) { return typeof el === 'string' ? document.getElementById(el) : el; }
+      _bindDragEvents(element, config) {
+        let isDragging = false, startX, startY, initialLeft, initialTop;
+        const self = this;
+        const startHandler = (e) => {
+          e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          isDragging = true; startX = point.clientX; startY = point.clientY;
+          initialLeft = parseFloat(element.style.left) || 0;
+          initialTop = parseFloat(element.style.top) || 0;
+          element.style.zIndex = 1000; element.style.cursor = 'grabbing';
+          element.classList.add('tge-dragging');
+          self._emit('dragStart', { element });
+        };
+        const moveHandler = (e) => {
+          if (!isDragging) return; e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          element.style.left = `${initialLeft + point.clientX - startX}px`;
+          element.style.top = `${initialTop + point.clientY - startY}px`;
+          self._checkDropZones(element, config);
+        };
+        const endHandler = (e) => {
+          if (!isDragging) return; isDragging = false;
+          element.style.zIndex = config.zIndex; element.style.cursor = 'grab';
+          element.classList.remove('tge-dragging');
+          const dropZone = self._checkDropZones(element, config);
+          if (dropZone) { self._emit('drop', { source: element, target: dropZone.element }); self._snapTo(element, dropZone.element); }
+          else { if (config.revert) self._revert(element, config); self._emit('dragEnd', { element, success: false }); }
+          self.dropZones.forEach(z => z.element.classList.remove('tge-drag-over'));
+        };
+        if (this.isMobile) { element.addEventListener('touchstart', startHandler, { passive: false }); window.addEventListener('touchmove', moveHandler, { passive: false }); window.addEventListener('touchend', endHandler); }
+        else { element.addEventListener('mousedown', startHandler); window.addEventListener('mousemove', moveHandler); window.addEventListener('mouseup', endHandler); }
+      }
+      _checkDropZones(dragEl, dragConfig) {
+        let bestZone = null, maxArea = 0; const dragRect = dragEl.getBoundingClientRect();
+        this.dropZones.forEach(zone => {
+          if (zone.config.group !== dragConfig.targetGroup) return;
+          const zoneRect = zone.element.getBoundingClientRect();
+          const overlap = !(dragRect.right < zoneRect.left || dragRect.left > zoneRect.right || dragRect.bottom < zoneRect.top || dragRect.top > zoneRect.bottom);
+          if (overlap) { const x_overlap = Math.max(0, Math.min(dragRect.right, zoneRect.right) - Math.max(dragRect.left, zoneRect.left)); const y_overlap = Math.max(0, Math.min(dragRect.bottom, zoneRect.bottom) - Math.max(dragRect.top, zoneRect.top)); const area = x_overlap * y_overlap; if (area > maxArea) { maxArea = area; bestZone = zone; } }
+        });
+        this.dropZones.forEach(z => z === bestZone ? z.element.classList.add('tge-drag-over') : z.element.classList.remove('tge-drag-over'));
+        return bestZone;
+      }
+      _snapTo(dragEl, targetEl) { const offsetParent = dragEl.offsetParent || document.body; const parentRect = offsetParent.getBoundingClientRect(); const targetRect = targetEl.getBoundingClientRect(); const dragRect = dragEl.getBoundingClientRect(); const centerX = targetRect.left + targetRect.width / 2 - dragRect.width / 2 - parentRect.left; const centerY = targetRect.top + targetRect.height / 2 - dragRect.height / 2 - parentRect.top; dragEl.style.transition = 'all 0.3s ease-out'; dragEl.style.left = centerX + 'px'; dragEl.style.top = centerY + 'px'; setTimeout(() => dragEl.style.transition = '', 300); }
+      _revert(element, config) { element.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; element.style.left = config.initialX + 'px'; element.style.top = config.initialY + 'px'; setTimeout(() => element.style.transition = '', 300); }
+      _emit(name, data) { if (this.events[name]) this.events[name].forEach(cb => cb(data)); }
+      _initStyle() { if (document.getElementById('tge-style')) return; const css = `.tge-draggable { touch-action: none; user-select: none; } .tge-drag-over { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); transform: scale(1.02); transition: transform 0.2s; } .tge-anim-shake { animation: tge-shake 0.5s; } .tge-anim-pulse { animation: tge-pulse 0.5s; } @keyframes tge-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } } @keyframes tge-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }`; const style = document.createElement('style'); style.id = 'tge-style'; style.textContent = css; document.head.appendChild(style); }
+      static Draggable = class {
+        constructor(element, options = {}) { this.element = typeof element === 'string' ? document.getElementById(element) : element; this.options = { container: document.body, ...options }; this.isDragging = false; this.isMobile = 'ontouchstart' in window; this._bind(); }
+        _bind() {
+          const el = this.element; let startX, startY, elX, elY;
+          const start = (e) => { e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; this.isDragging = true; startX = pt.clientX; startY = pt.clientY; elX = parseFloat(el.style.left) || 0; elY = parseFloat(el.style.top) || 0; if (this.options.onDragStart) this.options.onDragStart(e); };
+          const move = (e) => { if (!this.isDragging) return; e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; el.style.left = (elX + pt.clientX - startX) + 'px'; el.style.top = (elY + pt.clientY - startY) + 'px'; };
+          const end = (e) => { if (!this.isDragging) return; this.isDragging = false; if (this.options.onDragEnd) this.options.onDragEnd(e); };
+          if (this.isMobile) { el.addEventListener('touchstart', start, { passive: false }); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end); }
+          else { el.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end); }
+        }
+        destroy() { }
+      };
+    }
+    window.TeachingGameEngine = TeachingGameEngine;
+    window.gameEngine = new TeachingGameEngine();
+
+    // Responsive Scaling
+    function resizeApp() {
+      const c = document.getElementById('app-container');
+      const scaleX = window.innerWidth / 1920;
+      const scaleY = window.innerHeight / 1080;
+      const scale = Math.min(scaleX, scaleY);
+      // Calculate actual size after scaling
+      const scaledWidth = 1920 * scale;
+      const scaledHeight = 1080 * scale;
+      // Calculate centering offset
+      const offsetX = (window.innerWidth - scaledWidth) / 2;
+      const offsetY = (window.innerHeight - scaledHeight) / 2;
+      // Apply transform: move to center position first, then scale
+      c.style.left = offsetX + 'px';
+      c.style.top = offsetY + 'px';
+      c.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', resizeApp);
+    resizeApp();
+
+    // Activity Manager
+    const ActivityManager = {
+      current: null,
+      // List of components to wait for (populated during component registration)
+      _requiredComponents: [],
+
+      async show(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        if (this.current && window[`ACTIVITY_${this.current}`]?.destroy) {
+          window[`ACTIVITY_${this.current}`].destroy();
+        }
+        if (id === 0) {
+          document.getElementById('home-page').classList.add('active');
+          if (window.HOME_PAGE) HOME_PAGE.init();
+          this.current = null;
+        } else {
+          document.getElementById(`activity-${id}`).classList.add('active');
+          const activity = window[`ACTIVITY_${id}`];
+          if (activity) {
+            // Wait for all components to be registered
+            await this._waitForComponents();
+            activity.init();
+          }
+          this.current = id;
+        }
+      },
+
+      // Wait for all registered components to be ready
+      async _waitForComponents() {
+        if (this._requiredComponents.length === 0) return;
+        const promises = this._requiredComponents.map(name =>
+          customElements.whenDefined(name).catch(() => { })
+        );
+        await Promise.all(promises);
+      },
+
+      // Register components to wait for (called by component scripts)
+      registerComponent(tagName) {
+        if (!this._requiredComponents.includes(tagName)) {
+          this._requiredComponents.push(tagName);
+        }
+      },
+
+      goHome() { this.show(0); }
+    };
+    window.ActivityManager = ActivityManager;  // Mount to window for LLM generated code to use
+
+    // Utility Functions
+    function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function playSound(type) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        if (type === 'correct') {
+          osc.frequency.setValueAtTime(523, ctx.currentTime);
+          osc.frequency.setValueAtTime(784, ctx.currentTime + 0.15);
+        } else {
+          osc.frequency.setValueAtTime(200, ctx.currentTime);
+        }
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch (e) { }
+    }
+
+    /**
+     * Create activity header (includes back button)
+     * @param {string} title - Activity title
+     * @param {string} progressText - Progress text (optional), e.g. "1/5"
+     * @returns {string} HTML string
+     */
+    function createActivityHeader(title, progressText = '') {
+      return `
+        <div class="activity-header">
+          <button class="back-btn" onclick="ActivityManager.goHome()">🏠 Home</button>
+          <h2 style="font-size: 28px; margin: 0;">${title}</h2>
+          <div class="progress">${progressText}</div>
+        </div>
+      `;
+    }
+    window.createActivityHeader = createActivityHeader;
+
+    // ========== 3D Geometry Tools (Built-in) ==========
+    // For 3D geometry activities, supports: cuboid, cube, sphere, cylinder, cone, frustum, prism, pyramid
+    const Geometry3DHelper = {
+      // 支持的类型及默认参数
+      TYPES: {
+        cuboid: { l: 4, w: 6, h: 3 },
+        cube: { size: 4 },
+        sphere: { radius: 3 },
+        cylinder: { radiusTop: 2, radiusBottom: 2, height: 5 },
+        cone: { radius: 2, height: 5 },
+        frustum: { radiusTop: 1, radiusBottom: 2.5, height: 4 },
+        prism: { sides: 6, radius: 2, height: 4 },
+        pyramid: { sides: 4, radius: 2, height: 5 }
+      },
+
+      /**
+       * Create 3D geometry renderer
+       * @param {HTMLElement} container - Container element
+       * @param {string} type - Type: cuboid/cube/sphere/cylinder/cone/frustum/prism/pyramid
+       * @param {object} params - Parameters object
+       * @param {object} options - Optional config { autoRotate, showEdges }
+       * @returns {object} Controller object { updateParams, setType, dispose }
+       */
+      create(container, type = 'cuboid', params = null, options = {}) {
+        const self = {
+          scene: null, camera: null, renderer: null,
+          mesh: null, edges: null, edgeLines: null, geometry: null,
+          currentType: type,
+          currentParams: params || { ...this.TYPES[type] },
+          options: { autoRotate: true, showEdges: true, ...options },
+          boxMaterials: null
+        };
+
+        // Initialize scene
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 400;
+
+        self.scene = new THREE.Scene();
+        self.scene.background = new THREE.Color(0xe8f4f8);
+
+        self.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+        self.camera.position.set(12, 9, 15);
+        self.camera.lookAt(0, 0, 0);
+
+        self.renderer = new THREE.WebGLRenderer({ antialias: true });
+        self.renderer.setSize(width, height);
+        self.renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(self.renderer.domElement);
+
+        // Lighting
+        self.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        self.scene.add(dirLight);
+
+        // Materials
+        self.boxMaterials = [
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db })
+        ];
+
+        // Create geometry
+        const createGeometry = () => {
+          if (self.mesh) { self.scene.remove(self.mesh); self.geometry.dispose(); }
+          if (self.edgeLines) { self.scene.remove(self.edgeLines); self.edges.dispose(); }
+
+          const p = self.currentParams;
+          switch (self.currentType) {
+            case 'cube': self.geometry = new THREE.BoxGeometry(p.size, p.size, p.size); break;
+            case 'cuboid': self.geometry = new THREE.BoxGeometry(p.w, p.h, p.l); break;
+            case 'sphere': self.geometry = new THREE.SphereGeometry(p.radius, 32, 24); break;
+            case 'cylinder': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'cone': self.geometry = new THREE.ConeGeometry(p.radius, p.height, 32); break;
+            case 'frustum': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'prism': self.geometry = new THREE.CylinderGeometry(p.radius, p.radius, p.height, p.sides); break;
+            case 'pyramid': self.geometry = new THREE.ConeGeometry(p.radius, p.height, p.sides); self.geometry.rotateY(Math.PI / p.sides); break;
+            default: self.geometry = new THREE.BoxGeometry(3, 3, 3);
+          }
+
+          const mat = (self.currentType === 'cuboid' || self.currentType === 'cube') ? self.boxMaterials : new THREE.MeshLambertMaterial({ color: 0x3498db });
+          self.mesh = new THREE.Mesh(self.geometry, mat);
+          self.scene.add(self.mesh);
+
+          if (self.options.showEdges) {
+            self.edges = new THREE.EdgesGeometry(self.geometry, 15);
+            self.edgeLines = new THREE.LineSegments(self.edges, new THREE.LineBasicMaterial({ color: 0x333333 }));
+            self.scene.add(self.edgeLines);
+          }
+        };
+        createGeometry();
+
+        // Animation loop
+        let animId;
+        const animate = () => {
+          animId = requestAnimationFrame(animate);
+          if (self.options.autoRotate && self.mesh) {
+            self.mesh.rotation.y += 0.005;
+            if (self.edgeLines) self.edgeLines.rotation.y += 0.005;
+          }
+          self.renderer.render(self.scene, self.camera);
+        };
+        animate();
+
+        // Return controller
+        return {
+          updateParams(newParams) {
+            self.currentParams = { ...self.currentParams, ...newParams };
+            createGeometry();
+          },
+          setType(newType, newParams) {
+            self.currentType = newType;
+            self.currentParams = newParams || { ...Geometry3DHelper.TYPES[newType] };
+            createGeometry();
+          },
+          isCube() {
+            if (self.currentType === 'cube') return true;
+            if (self.currentType === 'cuboid') {
+              const { l, w, h } = self.currentParams;
+              return l === w && w === h;
+            }
+            return false;
+          },
+          dispose() {
+            cancelAnimationFrame(animId);
+            if (self.geometry) self.geometry.dispose();
+            if (self.edges) self.edges.dispose();
+            self.boxMaterials.forEach(m => m.dispose());
+            self.renderer.dispose();
+            const canvas = self.renderer.domElement;
+            if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+          }
+        };
+      }
+    };
+
+    // ========== LLM Generated Code Area ==========
+    window.HOME_PAGE = {
+      template: `
+    <style>
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      .home-container {
+        width: 100%;
+        height: 100%;
+        background: url('./assets/background.png') no-repeat center center;
+        background-size: cover;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: "Microsoft YaHei", sans-serif;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      .header-area {
+        text-align: center;
+        margin-bottom: 60px;
+        animation: fadeIn 0.8s ease-out;
+        text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      }
+
+      .main-title {
+        font-size: 80px;
+        font-weight: 800;
+        color: #fff;
+        margin: 0;
+        letter-spacing: 4px;
+        background: linear-gradient(to bottom, #ffffff 0%, #e0f7fa 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 4px 0 rgba(76, 114, 186, 0.8));
+      }
+
+      .sub-title {
+        font-size: 32px;
+        color: #fff;
+        margin-top: 10px;
+        font-weight: 500;
+        background-color: rgba(0, 0, 0, 0.2);
+        padding: 8px 24px;
+        border-radius: 50px;
+        backdrop-filter: blur(4px);
+      }
+
+      .card-container {
+        display: flex;
+        gap: 40px;
+        padding: 0 40px;
+        z-index: 10;
+      }
+
+      .activity-card {
+        width: 320px;
+        height: 420px;
+        background: rgba(255, 255, 255, 0.92);
+        border-radius: 30px;
+        padding: 30px 20px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        position: relative;
+        overflow: hidden;
+        border: 4px solid transparent;
+      }
+
+      .activity-card:hover {
+        transform: translateY(-15px) scale(1.02);
+        background: #fff;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      }
+
+      /* Card Theme Colors */
+      .card-1:hover { border-color: #4facfe; }
+      .card-2:hover { border-color: #ff9a9e; }
+      .card-3:hover { border-color: #43e97b; }
+
+      .card-icon {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        margin-bottom: 20px;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+      }
+
+      .card-1 .card-icon { background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
+      .card-2 .card-icon { background: linear-gradient(120deg, #fccb90 0%, #d57eeb 100%); }
+      .card-3 .card-icon { background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%); }
+
+      .card-title {
+        font-size: 26px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .card-desc {
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+        line-height: 1.6;
+        flex-grow: 1;
+      }
+
+      .play-btn {
+        margin-top: 20px;
+        padding: 12px 40px;
+        border-radius: 25px;
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+        transition: background 0.3s;
+      }
+
+      .card-1 .play-btn { background: #4facfe; }
+      .card-2 .play-btn { background: #ff9a9e; }
+      .card-3 .play-btn { background: #00cdac; }
+
+      /* Animation Delays */
+      .card-1 { animation: fadeIn 0.6s ease-out 0.2s backwards; }
+      .card-2 { animation: fadeIn 0.6s ease-out 0.4s backwards; }
+      .card-3 { animation: fadeIn 0.6s ease-out 0.6s backwards; }
+
+    </style>
+
+    <div class="home-container">
+      <div class="header-area">
+        <h1 class="main-title">The Amazing Time Factory</h1>
+        <div class="sub-title">Explore the Secrets of Clock Hands, Become a Time Master</div>
+      </div>
+
+      <div class="card-container">
+        <!-- Card 1 -->
+        <div class="activity-card card-1" data-id="1">
+          <div class="card-icon">🕵️‍♂️</div>
+          <div class="card-title">Time Detective<br>Read the Clock</div>
+          <div class="card-desc">Observe the position of hour and minute hands, be a sharp-eyed detective and pick the correct time!</div>
+          <div class="play-btn">Start Challenge</div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="activity-card card-2" data-id="2">
+          <div class="card-icon">🛠️</div>
+          <div class="card-title">Clock Repair<br>Set the Time</div>
+          <div class="card-desc">Time is messed up? Drag the hands to set the clock to the correct time.</div>
+          <div class="play-btn">Start Repair</div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="activity-card card-3" data-id="3">
+          <div class="card-icon">📅</div>
+          <div class="card-title">Daily Routine<br>Match Game</div>
+          <div class="card-desc">What should you do at this time? Drag activity cards to plan a perfect daily schedule.</div>
+          <div class="play-btn">Start Planning</div>
+        </div>
+      </div>
+    </div>
+  `,
+
+      init() {
+        // Render template
+        const container = document.getElementById('home-page');
+        if (container) {
+          container.innerHTML = this.template;
+        }
+
+        // Bind click events
+        const cards = container.querySelectorAll('.activity-card');
+        cards.forEach(card => {
+          card.addEventListener('click', () => {
+            const id = parseInt(card.getAttribute('data-id'), 10);
+            // Directly call ActivityManager
+            ActivityManager.show(id);
+          });
+        });
+      }
+    };
+    window.ACTIVITY_1 = {
+      id: "1",
+      config: {
+        totalQuestions: 10,
+        assets: {
+          correct: "./assets/icon_feedback_correct.png",
+          wrong: "./assets/icon_feedback_wrong.png",
+          star: "./assets/icon_star.png"
+        }
+      },
+      state: {
+        currentQuestionIndex: 0,
+        score: 0,
+        isInteracting: false,
+        currentQuestionData: null
+      },
+
+      template: `
+    <style>
+      #activity-1 {
+        width: 1920px;
+        height: 1080px;
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+        font-family: "Microsoft YaHei", sans-serif;
+        user-select: none;
+      }
+      
+      #activity-1 .main-area {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: calc(100% - 80px);
+        padding: 0 100px;
+        gap: 150px;
+      }
+      
+      /* 时钟容器 - 禁用指针交互 */
+      #activity-1 .clock-wrapper {
+        position: relative;
+        padding: 50px;
+        background: white;
+        border-radius: 50%;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        pointer-events: none; /* 禁止拖拽 */
+        border: 10px solid #f0f0f0;
+      }
+      
+      /* 右侧选项面板 */
+      #activity-1 .options-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: white;
+        padding: 50px;
+        border-radius: 40px;
+        box-shadow: 0 15px 50px rgba(0,0,0,0.08);
+        min-width: 500px;
+      }
+      
+      #activity-1 .question-text {
+        font-size: 42px;
+        color: #2c3e50;
+        margin-bottom: 50px;
+        font-weight: 800;
+        letter-spacing: 2px;
+      }
+      
+      #activity-1 .options-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        width: 100%;
+      }
+      
+      /* Cartoon 3D Button Style */
+      #activity-1 .option-btn {
+        background: #ffffff;
+        border: 4px solid #4a90e2;
+        border-radius: 25px;
+        font-size: 56px;
+        font-weight: bold;
+        color: #4a90e2;
+        padding: 25px 0;
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+        box-shadow: 0 10px 0 #2c5f9e, 0 15px 20px rgba(0,0,0,0.15);
+        outline: none;
+        position: relative;
+      }
+      
+      #activity-1 .option-btn:active {
+        transform: translateY(10px);
+        box-shadow: 0 0 0 #2c5f9e, 0 5px 5px rgba(0,0,0,0.1);
+      }
+      
+      #activity-1 .option-btn.correct {
+        background: #2ecc71;
+        border-color: #27ae60;
+        color: white;
+        box-shadow: 0 10px 0 #1e8449;
+      }
+      #activity-1 .option-btn.correct:active {
+        box-shadow: 0 0 0 #1e8449;
+      }
+      
+      #activity-1 .option-btn.wrong {
+        background: #ff7675;
+        border-color: #d63031;
+        color: white;
+        box-shadow: 0 10px 0 #c0392b;
+        animation: shake-1 0.5s;
+      }
+      #activity-1 .option-btn.wrong:active {
+        box-shadow: 0 0 0 #c0392b;
+      }
+      
+      @keyframes shake-1 {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-12px); }
+        75% { transform: translateX(12px); }
+      }
+
+      /* Feedback Overlay */
+      #activity-1 .feedback-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.4);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 200;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+        backdrop-filter: blur(5px);
+      }
+      
+      #activity-1 .feedback-overlay.show {
+        opacity: 1;
+      }
+      
+      #activity-1 .feedback-icon {
+        width: 350px;
+        height: 350px;
+        transform: scale(0.5);
+        transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      #activity-1 .feedback-overlay.show .feedback-icon {
+        transform: scale(1);
+      }
+
+      /* Result Screen */
+      #activity-1 .result-screen {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(255,255,255,0.98);
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 300;
+      }
+      
+      #activity-1 .result-title {
+        font-size: 72px;
+        color: #2d3436;
+        margin-bottom: 30px;
+        font-weight: 900;
+      }
+      
+      #activity-1 .result-score {
+        font-size: 140px;
+        color: #f1c40f;
+        font-weight: bold;
+        text-shadow: 4px 4px 0 #d35400;
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        margin-bottom: 60px;
+      }
+      
+      #activity-1 .restart-btn {
+        padding: 25px 80px;
+        font-size: 40px;
+        font-weight: bold;
+        background: linear-gradient(to bottom, #74b9ff, #0984e3);
+        color: white;
+        border: none;
+        border-radius: 60px;
+        cursor: pointer;
+        box-shadow: 0 10px 30px rgba(9, 132, 227, 0.4);
+        transition: transform 0.2s;
+      }
+      
+      #activity-1 .restart-btn:active {
+        transform: scale(0.95);
+      }
+    </style>
+
+    <!-- Header Container -->
+    <div id="header-container-1"></div>
+
+    <div class="main-area">
+      <!-- Clock Display Area -->
+      <div class="clock-wrapper">
+        <!-- Core Component: must use analog-clock-component -->
+        <analog-clock-component 
+            id="analog-clock-1" 
+            width="600" 
+            height="600" 
+            radius="260"
+            face-color="#fff"
+            color="#333"
+            accent-color="#e74c3c">
+        </analog-clock-component>
+      </div>
+      
+      <!-- Options Interaction Area -->
+      <div class="options-panel">
+        <div class="question-text">What time is it now?</div>
+        <div class="options-grid" id="options-container-1">
+          <!-- Buttons dynamically generated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Overlay -->
+    <div class="feedback-overlay" id="feedback-overlay-1">
+      <img src="" class="feedback-icon" id="feedback-icon-1" />
+    </div>
+
+    <!-- Result Screen -->
+    <div class="result-screen" id="result-screen-1">
+      <div class="result-title">Challenge Complete!</div>
+      <div class="result-score">
+        <img src="./assets/icon_star.png" width="120">
+        <span id="final-score-1">0</span>
+      </div>
+      <button class="restart-btn" id="restart-btn-1">Play Again</button>
+    </div>
+  `,
+
+      init() {
+        // 1. Render template
+        const container = document.getElementById('activity-1');
+        container.innerHTML = this.template;
+
+        // 2. Bind restart event
+        document.getElementById('restart-btn-1').addEventListener('click', () => {
+          this.resetGame();
+        });
+
+        // 3. Start game
+        this.resetGame();
+      },
+
+      resetGame() {
+        this.state.score = 0;
+        this.state.currentQuestionIndex = 0;
+        document.getElementById('result-screen-1').style.display = 'none';
+        this.loadQuestion();
+      },
+
+      loadQuestion() {
+        // Check if finished
+        if (this.state.currentQuestionIndex >= this.config.totalQuestions) {
+          this.showResult();
+          return;
+        }
+
+        // Update header progress
+        const headerContainer = document.getElementById('header-container-1');
+        const progress = `${this.state.currentQuestionIndex + 1}/${this.config.totalQuestions}`;
+        headerContainer.innerHTML = createActivityHeader('Time Detective: Read the Clock', progress);
+
+        // Generate question data
+        const qData = this.generateQuestionData();
+        this.state.currentQuestionData = qData;
+
+        // Set component state
+        const clock = document.getElementById('analog-clock-1');
+        // Call component API to set time
+        clock.setValue({ h: qData.h, m: qData.m, s: 0 });
+
+        // Render option buttons
+        const optionsContainer = document.getElementById('options-container-1');
+        optionsContainer.innerHTML = '';
+
+        qData.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = 'option-btn';
+          btn.textContent = opt;
+          // Bind click event
+          btn.onclick = () => this.checkAnswer(btn, opt);
+          optionsContainer.appendChild(btn);
+        });
+
+        this.state.isInteracting = true;
+      },
+
+      generateQuestionData() {
+        // Randomly generate time: H(1-12), M(0 or 30)
+        const h = Math.floor(Math.random() * 12) + 1;
+        const m = Math.random() < 0.5 ? 0 : 30;
+
+        // Format helper function
+        const formatTime = (hVal, mVal) => {
+          const mm = mVal === 0 ? '00' : mVal;
+          const hh = hVal.toString().padStart(2, '0');
+          return `${hh}:${mm}`;
+        };
+
+        const correctTime = formatTime(h, m);
+        const options = new Set();
+        options.add(correctTime);
+
+        // Distractor 1: next hour (H+1):M
+        let h1 = (h % 12) + 1;
+        options.add(formatTime(h1, m));
+
+        // Distractor 2: minute confusion (30->00, 00->30)
+        let m2 = m === 0 ? 30 : 0;
+        options.add(formatTime(h, m2));
+
+        // Distractor 3: previous hour (H-1):M
+        let h3 = h === 1 ? 12 : h - 1;
+        options.add(formatTime(h3, m));
+
+        // Fill up to 4 options (prevent insufficient count due to duplicates)
+        while (options.size < 4) {
+          const randH = Math.floor(Math.random() * 12) + 1;
+          const randM = Math.random() < 0.5 ? 0 : 30;
+          options.add(formatTime(randH, randM));
+        }
+
+        // Convert to array and shuffle
+        return {
+          h, m,
+          correct: correctTime,
+          options: Array.from(options).sort(() => Math.random() - 0.5)
+        };
+      },
+
+      checkAnswer(btn, value) {
+        if (!this.state.isInteracting) return;
+        this.state.isInteracting = false;
+
+        const isCorrect = value === this.state.currentQuestionData.correct;
+
+        if (isCorrect) {
+          this.state.score++;
+          btn.classList.add('correct');
+          // Play correct sound
+          if (window.gameEngine) window.gameEngine.playSound('success');
+          this.showFeedback(true);
+        } else {
+          btn.classList.add('wrong');
+          // Play wrong sound
+          if (window.gameEngine) window.gameEngine.playSound('error');
+
+          // Highlight correct answer
+          const buttons = document.getElementById('options-container-1').children;
+          for (let b of buttons) {
+            if (b.textContent === this.state.currentQuestionData.correct) {
+              b.classList.add('correct');
+            }
+          }
+          this.showFeedback(false);
+        }
+
+        // Delay before next question
+        setTimeout(() => {
+          this.state.currentQuestionIndex++;
+          this.loadQuestion();
+        }, 2000);
+      },
+
+      showFeedback(isCorrect) {
+        const overlay = document.getElementById('feedback-overlay-1');
+        const icon = document.getElementById('feedback-icon-1');
+
+        // Set corresponding icon
+        icon.src = isCorrect ? this.config.assets.correct : this.config.assets.wrong;
+
+        // Show animation
+        overlay.classList.add('show');
+
+        // Auto hide
+        setTimeout(() => {
+          overlay.classList.remove('show');
+        }, 1500);
+      },
+
+      showResult() {
+        const screen = document.getElementById('result-screen-1');
+        document.getElementById('final-score-1').textContent = this.state.score;
+        screen.style.display = 'flex';
+        // Play victory sound
+        if (window.gameEngine) window.gameEngine.playSound('success');
+      },
+
+      destroy() {
+        // Cleanup when leaving page
+      }
+    };
+    window.ACTIVITY_2 = {
+      id: "2",
+      config: {
+        totalQuestions: 10,
+        questionType: "random"
+      },
+      state: {
+        currentQuestion: 0,
+        score: 0,
+        targetH: 0,
+        targetM: 0,
+        isProcessing: false
+      },
+      assets: {
+        bg: "./assets/background.png",
+        correct: "./assets/feedback_icon_correct.png",
+        wrong: "./assets/feedback_icon_wrong.png",
+        board: "./assets/target_time_board.png",
+        btn: "./assets/btn_confirm_bg.png"
+      },
+
+      template: `
+    ${createActivityHeader('Clock Repair: Set the Time', '1/10')}
+    <div class="activity-content" id="activity-content-2">
+      
+      <!-- Target Time Display Panel -->
+      <div class="target-board">
+        <span class="digital-time" id="target-time-2">00:00</span>
+      </div>
+
+      <!-- Clock Component Area -->
+      <div class="clock-container-wrapper">
+        <analog-clock-component 
+          id="analog-clock-2"
+          width="420px"
+          height="420px"
+          radius="190"
+          color="#333"
+          face-color="#ffffff"
+          accent-color="#ff6b6b"
+        ></analog-clock-component>
+      </div>
+
+      <!-- Confirm Button -->
+      <div class="confirm-btn" id="confirm-btn-2"></div>
+
+      <!-- Feedback Overlay -->
+      <div class="feedback-overlay" id="feedback-overlay-2" style="display:none;">
+        <img id="feedback-icon-2" src="" alt="feedback" />
+      </div>
+    </div>
+
+    <div class="activity-footer">
+      <button class="next-btn" id="next-btn-2" disabled>Next</button>
+    </div>
+
+    <style>
+      #activity-content-2 {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background-image: url('./assets/background.png');
+        background-size: cover;
+        background-position: center;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      /* Target Panel Style */
+      .target-board {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 380px;
+        height: 160px;
+        background-image: url('./assets/target_time_board.png');
+        /* url('./assets/target_time_board.png'); */
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        z-index: 5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding-top: 30px; /* Visual vertical centering fix */
+      }
+
+      .digital-time {
+        font-family: 'Courier New', monospace; /* Fallback */
+        font-size: 80px;
+        font-weight: bold;
+        color: #FFD700;
+        text-shadow: 0 0 5px orange;
+        letter-spacing: 4px;
+      }
+      /* Try to import digital clock font */
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+      .digital-time {
+        font-family: 'Orbitron', monospace;
+      }
+
+      /* Clock Component Container */
+      .clock-container-wrapper {
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 420px;
+        height: 420px;
+        z-index: 10;
+        border-radius: 50%;
+        /* box-shadow: 0 10px 30px rgba(0,0,0,0.2); */
+      }
+
+      /* Confirm Button Style */
+      .confirm-btn {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 240px;
+        height: 90px;
+        background-image: url('./assets/btn_confirm_bg.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        cursor: pointer;
+        z-index: 20;
+        transition: transform 0.1s ease;
+      }
+      .confirm-btn:active {
+        transform: translateX(-50%) scale(0.95);
+      }
+      .confirm-btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+        filter: grayscale(1);
+      }
+
+      /* Feedback Layer Style */
+      .feedback-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 200;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .feedback-overlay img {
+        width: 300px;
+        height: 300px;
+        object-fit: contain;
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      @keyframes popIn {
+        from { transform: scale(0); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+    </style>
+  `,
+
+      init() {
+        // 1. Render template
+        document.getElementById('activity-2').innerHTML = this.template;
+
+        // 2. Get component and DOM element references
+        this.clockComponent = document.getElementById('analog-clock-2');
+        this.targetDisplay = document.getElementById('target-time-2');
+        this.confirmBtn = document.getElementById('confirm-btn-2');
+        this.nextBtn = document.getElementById('next-btn-2');
+        this.feedbackOverlay = document.getElementById('feedback-overlay-2');
+        this.feedbackIcon = document.getElementById('feedback-icon-2');
+
+        // 3. Bind interaction events
+        this.confirmBtn.addEventListener('click', () => this.checkAnswer());
+        this.nextBtn.addEventListener('click', () => this.nextQuestion());
+
+        // Listen for clock drag events (optional: for sound feedback or state reset)
+        this.clockComponent.addEventListener('change', () => {
+          // Can add tick sound when dragging here
+        });
+
+        // 4. Load first question
+        this.loadQuestion();
+      },
+
+      /**
+       * Generate and load question
+       */
+      loadQuestion() {
+        this.state.isProcessing = false;
+        this.feedbackOverlay.style.display = 'none';
+        this.confirmBtn.removeAttribute('disabled');
+        this.nextBtn.disabled = true;
+
+        // 1. Generate question data based on progress
+        const index = this.state.currentQuestion;
+        const qData = this.generateQuestion(index);
+        this.state.targetH = qData.h;
+        this.state.targetM = qData.m;
+
+        // 2. Update top target time display (digital format HH:MM)
+        const hStr = qData.h.toString().padStart(2, '0');
+        const mStr = qData.m.toString().padStart(2, '0');
+        this.targetDisplay.innerText = `${hStr}:${mStr}`;
+
+        // 3. Update header progress
+        const headerRight = document.querySelector('#activity-2 .activity-header-right');
+        if (headerRight) {
+          headerRight.innerText = `${index + 1}/${this.config.totalQuestions}`;
+        }
+
+        // 4. Reset clock position
+        // To increase challenge, set clock initial position to a random value (not equal to target)
+        let initH, initM;
+        do {
+          initH = Math.floor(Math.random() * 12) + 1;
+          initM = Math.floor(Math.random() * 60);
+        } while (initH === qData.h && Math.abs(initM - qData.m) < 5);
+
+        this.clockComponent.setValue({ h: initH, m: initM, s: 0 });
+      },
+
+      /**
+       * Question generation logic
+       * First 3: hour marks
+       * Middle 3: half hour marks
+       * Last 4: quarter marks (15/45)
+       */
+      generateQuestion(index) {
+        let m = 0;
+        if (index < 3) {
+          m = 0;
+        } else if (index < 6) {
+          m = 30;
+        } else {
+          m = Math.random() > 0.5 ? 15 : 45;
+        }
+
+        // Hour random 1-12
+        const h = Math.floor(Math.random() * 12) + 1;
+
+        return { h, m };
+      },
+
+      /**
+       * Check answer
+       */
+      checkAnswer() {
+        if (this.state.isProcessing) return;
+
+        // Get component current state
+        // Note: Component returns hour as 0-23, question generates 1-12
+        const currentState = this.clockComponent.getState().data.time;
+        const currentH = currentState.hour;
+        const currentM = currentState.minute;
+
+        // Convert to "minutes from 12:00" for comparison, eliminating 12-hour system differences
+        const targetTotalMins = (this.state.targetH % 12) * 60 + this.state.targetM;
+        const currentTotalMins = (currentH % 12) * 60 + currentM;
+
+        // Calculate deviation (handle boundary case crossing 12 o'clock, e.g. 11:59 and 12:01)
+        let diff = Math.abs(currentTotalMins - targetTotalMins);
+        if (diff > 360) {
+          diff = 720 - diff;
+        }
+
+        // Allow ±2 minutes tolerance
+        const isCorrect = diff <= 2;
+
+        this.showFeedback(isCorrect);
+      },
+
+      /**
+       * Show feedback
+       */
+      showFeedback(isCorrect) {
+        this.state.isProcessing = true;
+        this.confirmBtn.setAttribute('disabled', 'true');
+        this.nextBtn.disabled = false;
+
+        // Play sound
+        if (window.gameEngine && window.gameEngine.playSound) {
+          window.gameEngine.playSound(isCorrect ? 'success' : 'error');
+        }
+
+        // Show visual feedback
+        this.feedbackIcon.src = isCorrect ? this.assets.correct : this.assets.wrong;
+        this.feedbackOverlay.style.display = 'flex';
+
+        if (isCorrect) {
+          this.state.score++;
+        }
+      },
+
+      /**
+       * Next question
+       */
+      nextQuestion() {
+        this.state.currentQuestion++;
+        if (this.state.currentQuestion >= this.config.totalQuestions) {
+          this.showResult();
+        } else {
+          this.loadQuestion();
+        }
+      },
+
+      /**
+       * Show result
+       */
+      showResult() {
+        if (window.ActivityManager) {
+          alert(`Training complete! You earned ${this.state.score} stars!`);
+          window.ActivityManager.goHome();
+        } else {
+          console.log('Activity Finished', this.state.score);
+        }
+      },
+
+      destroy() {
+        // Remove event listeners and cleanup automatically handled
+      }
+    };
+    window.ACTIVITY_3 = {
+      config: {
+        totalQuestions: 10,
+        questionType: "preset",
+        assets: {
+          "item_Wake Up": "./assets/item_起床.png",
+          "item_Nap": "./assets/item_午睡.png",
+          "item_Sleep": "./assets/item_睡觉.png",
+          "item_Go to School": "./assets/item_上学.png",
+          "item_Morning Exercise": "./assets/item_课间操.png",
+          "item_Take a Bath": "./assets/item_洗澡.png",
+          "item_Leave School": "./assets/item_放学.png",
+          "background": "./assets/background(1).png",
+          "item_PE Class": "./assets/item_体育课.png",
+          "item_Afternoon Rest": "./assets/item_午休.png",
+          "item_Eat Lunch": "./assets/item_吃午饭.png",
+          "item_Brush Teeth": "./assets/item_刷牙.png",
+          "item_Dinner": "./assets/item_晚饭.png",
+          "item_Flag Raising": "./assets/item_升旗.png",
+          "item_Breakfast": "./assets/item_起床.png",
+          "item_Morning Reading": "./assets/item_上学.png",
+          "item_Lunch": "./assets/item_吃午饭.png",
+          "item_Do Homework": "./assets/item_上学.png",
+          "item_Watch News": "./assets/item_升旗.png",
+          "item_Class": "./assets/item_课间操.png"
+        },
+        questions: [
+          { id: 1, time: "07:00:00", target_item: "Wake Up", options: ["Wake Up", "Nap", "Leave School"] },
+          { id: 2, time: "08:00:00", target_item: "Go to School", options: ["Go to School", "Take a Bath", "Sleep"] },
+          { id: 3, time: "09:30:00", target_item: "Morning Exercise", options: ["Morning Exercise", "Dinner", "Wake Up"] },
+          { id: 4, time: "12:00:00", target_item: "Eat Lunch", options: ["Eat Lunch", "Flag Raising", "Brush Teeth"] },
+          { id: 5, time: "13:30:00", target_item: "Afternoon Rest", options: ["Afternoon Rest", "Go to School", "Breakfast"] },
+          { id: 6, time: "15:30:00", target_item: "PE Class", options: ["PE Class", "Sleep", "Brush Teeth"] },
+          { id: 7, time: "17:00:00", target_item: "Leave School", options: ["Leave School", "Morning Reading", "Lunch"] },
+          { id: 8, time: "18:30:00", target_item: "Do Homework", options: ["Do Homework", "Go to School", "Morning Exercise"] },
+          { id: 9, time: "19:00:00", target_item: "Watch News", options: ["Watch News", "Morning Exercise", "Class"] },
+          { id: 10, time: "21:00:00", target_item: "Sleep", options: ["Sleep", "Lunch", "Leave School"] }
+        ]
+      },
+
+      state: {
+        currentQuestionIndex: 0,
+        isComplete: false,
+        activeDraggables: []
+      },
+
+      template: `
+    ${createActivityHeader('Daily Routine Match', '1/10')}
+    <div class="activity-content" id="content-container-3">
+      <style>
+        #content-container-3 {
+          width: 100%;
+          height: 100%;
+          background-image: url('./assets/background.png');
+          background-size: cover;
+          background-position: center;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: 'Comic Sans MS', 'Microsoft YaHei', sans-serif;
+          user-select: none;
+        }
+
+        /* Layout Container */
+        .game-layout {
+          display: flex;
+          width: 90%;
+          height: 80%;
+          background: rgba(255, 255, 255, 0.85);
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+          padding: 30px;
+          box-sizing: border-box;
+          gap: 50px;
+        }
+
+        /* Left Area: Clock and Drop Zone */
+        .left-panel {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 40px;
+          border-right: 2px dashed #ccc;
+        }
+
+        /* Clock Component Style */
+        analog-clock-component {
+          --component-width: 320px;
+          --component-height: 320px;
+          /* Lock pointers to prevent user interaction, since clock is display-only for this question */
+          pointer-events: none; 
+          z-index: 10;
+        }
+
+        .clock-label {
+          font-size: 24px;
+          color: #333;
+          margin-top: -20px;
+          background: #f0f4ff;
+          padding: 8px 20px;
+          border-radius: 20px;
+        }
+
+        /* Drop Zone */
+        #drop-zone-3 {
+          width: 280px;
+          height: 200px;
+          border: 3px dashed #FDCB6E;
+          background-color: rgba(253, 203, 110, 0.1);
+          border-radius: 12px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          position: relative;
+          z-index: 15; /* 必须高于组件 */
+          transition: all 0.3s ease;
+        }
+
+        #drop-zone-3.drag-over {
+          background-color: rgba(253, 203, 110, 0.3);
+          transform: scale(1.05);
+          box-shadow: 0 0 20px rgba(253, 203, 110, 0.6);
+          border-color: #ff9f43;
+        }
+
+        .drop-hint {
+          color: #b2bec3;
+          font-size: 20px;
+          pointer-events: none;
+        }
+
+        /* Right Area: Option Cards */
+        .right-panel {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .cards-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 30px;
+          width: 100%;
+          justify-items: center;
+        }
+
+        .card-item {
+          width: 180px;
+          height: 180px;
+          background: white;
+          border-radius: 15px;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+          border: 2px solid #E0E0E0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          cursor: grab;
+          transition: transform 0.2s, box-shadow 0.2s;
+          position: relative;
+          z-index: 20;
+        }
+
+        .card-item:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+
+        .card-item:active {
+          cursor: grabbing;
+        }
+
+        .card-img {
+          width: 100px;
+          height: 100px;
+          object-fit: contain;
+          margin-bottom: 10px;
+          pointer-events: none;
+        }
+
+        .card-text {
+          font-size: 20px;
+          color: #2d3436;
+          font-weight: bold;
+          pointer-events: none;
+        }
+
+        .activity-footer {
+          position: absolute;
+          bottom: 20px;
+          right: 30px;
+        }
+
+        .next-btn {
+          padding: 12px 30px;
+          background: #0984e3;
+          color: white;
+          border: none;
+          border-radius: 50px;
+          font-size: 20px;
+          cursor: pointer;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+          display: none; /* Initially hidden */
+        }
+        
+        .next-btn:hover {
+          background: #74b9ff;
+        }
+      </style>
+
+      <div class="game-layout">
+        <div class="left-panel">
+          <div class="clock-label">What time is it?</div>
+          
+          <!-- Core Component: Clock -->
+          <analog-clock-component 
+            id="clock-3"
+            width="320"
+            height="320"
+            radius="150"
+            show-controls="false"
+          ></analog-clock-component>
+          
+          <!-- Drop Zone -->
+          <div id="drop-zone-3">
+            <span class="drop-hint">Drag image here</span>
+          </div>
+        </div>
+
+        <div class="right-panel">
+          <h3>What activity should you do?</h3>
+          <div class="cards-grid" id="card-container-3">
+            <!-- Cards dynamically generated -->
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="activity-footer">
+      <button class="next-btn" id="next-btn-3">Next</button>
+    </div>
+  `,
+
+      init() {
+        // 1. Render template
+        const container = document.getElementById('activity-3');
+        container.innerHTML = this.template;
+
+        // 2. Get component and DOM references
+        this.clockComponent = document.getElementById('clock-3');
+        this.dropZone = document.getElementById('drop-zone-3');
+        this.cardContainer = document.getElementById('card-container-3');
+        this.nextBtn = document.getElementById('next-btn-3');
+
+        // 3. Bind next question event
+        this.nextBtn.addEventListener('click', () => this.nextQuestion());
+
+        // 4. Initialize drop zone
+        this.setupDropZone();
+
+        // 5. Load first question
+        this.loadQuestion(0);
+      },
+
+      setupDropZone() {
+        // Although we use Draggable's onDragEnd for detection, adding visual effect listeners is better
+        // This is mainly for handling hover styles, logic is handled in item's dragEnd
+      },
+
+      loadQuestion(index) {
+        if (index >= this.config.questions.length) {
+          this.showResult();
+          return;
+        }
+
+        this.state.currentQuestionIndex = index;
+        const question = this.config.questions[index];
+
+        // Update header progress
+        const headerTitle = document.querySelector('#activity-3 .header-title');
+        const headerProgress = document.querySelector('#activity-3 .header-progress');
+        if (headerTitle) headerTitle.textContent = 'Daily Routine Match';
+        if (headerProgress) headerProgress.textContent = `${index + 1}/${this.config.questions.length}`;
+
+        // 1. Set clock time (must use component API)
+        if (this.clockComponent) {
+          this.clockComponent.setValue(question.time);
+        }
+
+        // 2. Reset drop zone
+        this.dropZone.innerHTML = '<span class="drop-hint">Drag image here</span>';
+        this.dropZone.style.border = '3px dashed #FDCB6E';
+        this.nextBtn.style.display = 'none';
+
+        // 3. Generate option cards
+        this.renderOptions(question);
+      },
+
+      renderOptions(question) {
+        this.cardContainer.innerHTML = '';
+
+        // Clear old drag instances
+        this.state.activeDraggables.forEach(d => d.destroy());
+        this.state.activeDraggables = [];
+
+        // Shuffle options order
+        const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
+
+        shuffledOptions.forEach(optName => {
+          // Build data structure conforming to ItemData protocol
+          const itemData = {
+            id: `item_${optName}`,
+            name: optName,
+            image: this.config.assets[`item_${optName}`] || '',
+            isTarget: optName === question.target_item
+          };
+
+          // Create DOM
+          const cardEl = document.createElement('div');
+          cardEl.className = 'card-item';
+          cardEl.innerHTML = `
+        <img src="${itemData.image}" class="card-img" draggable="false">
+        <div class="card-text">${itemData.name}</div>
+      `;
+          this.cardContainer.appendChild(cardEl);
+
+          // Create drag interaction
+          const dragInstance = new TeachingGameEngine.Draggable(cardEl, {
+            container: document.getElementById('activity-3'),
+            onDragStart: () => {
+              cardEl.style.zIndex = 100;
+              this.dropZone.classList.add('drag-over');
+              // Play sound
+              window.gameEngine && window.gameEngine.playSound('click');
+            },
+            onDragEnd: (e) => {
+              cardEl.style.zIndex = 20;
+              this.dropZone.classList.remove('drag-over');
+              this.checkDrop(cardEl, itemData, e);
+            }
+          });
+
+          this.state.activeDraggables.push(dragInstance);
+        });
+      },
+
+      checkDrop(cardEl, itemData, event) {
+        const dropRect = this.dropZone.getBoundingClientRect();
+        const cardRect = cardEl.getBoundingClientRect();
+
+        // Simple rectangle overlap detection
+        const isOverlapping = !(
+          cardRect.right < dropRect.left ||
+          cardRect.left > dropRect.right ||
+          cardRect.bottom < dropRect.top ||
+          cardRect.top > dropRect.bottom
+        );
+
+        if (isOverlapping) {
+          if (itemData.isTarget) {
+            this.handleSuccess(cardEl, itemData, event);
+          } else {
+            this.handleFailure(cardEl);
+          }
+        } else {
+          // Not dragged into zone, TeachingGameEngine defaults to revert (revert: true)
+          // But here we manually instantiated, if revert logic not set, need to manually reset
+          // Draggable has internal revert logic, here mainly for handling business logic
+        }
+      },
+
+      handleSuccess(cardEl, itemData, event) {
+        // 1. Play success sound
+        window.gameEngine && window.gameEngine.playSound('success');
+
+        // 2. Visual feedback: card fly-in animation
+        // Clone an element for fly-in animation
+        const flyingItem = document.createElement('img');
+        flyingItem.src = itemData.image;
+        flyingItem.style.cssText = `
+      position: fixed;
+      width: 100px; height: 100px;
+      left: ${event.clientX - 50}px; top: ${event.clientY - 50}px;
+      z-index: 1000;
+      transition: all 0.5s ease-out;
+      pointer-events: none;
+    `;
+        document.body.appendChild(flyingItem);
+
+        // Hide original card
+        cardEl.style.visibility = 'hidden';
+
+        // Calculate target position (drop zone center)
+        const targetRect = this.dropZone.getBoundingClientRect();
+
+        requestAnimationFrame(() => {
+          flyingItem.style.left = `${targetRect.left + targetRect.width / 2 - 50}px`;
+          flyingItem.style.top = `${targetRect.top + targetRect.height / 2 - 50}px`;
+          flyingItem.style.transform = 'scale(1.2)';
+        });
+
+        setTimeout(() => {
+          // After animation ends, display final state in drop zone
+          this.dropZone.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <img src="${itemData.image}" style="width:120px; height:120px;">
+          <div style="font-size:24px; font-weight:bold; color:#00b894; margin-top:10px;">${itemData.name}</div>
+        </div>
+      `;
+          this.dropZone.style.border = '3px solid #00b894';
+          this.dropZone.style.backgroundColor = '#e3fff8';
+
+          flyingItem.remove();
+
+          // Show next button
+          this.nextBtn.style.display = 'block';
+          window.gameEngine && window.gameEngine.showFeedback(this.dropZone, 'pulse');
+        }, 500);
+
+        // Disable drag on all cards
+        this.state.activeDraggables.forEach(d => d.destroy());
+      },
+
+      handleFailure(cardEl) {
+        // Play error sound
+        window.gameEngine && window.gameEngine.playSound('error');
+        // Error feedback animation
+        window.gameEngine && window.gameEngine.showFeedback(cardEl, 'shake');
+        // Draggable will auto revert, no extra code needed
+      },
+
+      nextQuestion() {
+        this.loadQuestion(this.state.currentQuestionIndex + 1);
+      },
+
+      showResult() {
+        this.cardContainer.innerHTML = '';
+        this.dropZone.innerHTML = '';
+        document.querySelector('.left-panel').innerHTML = `
+      <div style="text-align:center; font-size:30px; color:#0984e3;">
+        🎉 Congratulations! You completed all exercises!
+        <br>
+        <button onclick="window.location.reload()" style="margin-top:20px; padding:10px 30px; font-size:20px; border-radius:30px; border:none; background:#00b894; color:white; cursor:pointer;">Play Again</button>
+      </div>
+    `;
+      },
+
+      destroy() {
+        this.state.activeDraggables.forEach(d => d.destroy());
+        if (this.nextBtn) {
+          this.nextBtn.replaceWith(this.nextBtn.cloneNode(true));
+        }
+      }
+    };
+
+    // Start
+    document.addEventListener('DOMContentLoaded', () => {
+      ActivityManager.show(0);
+    });
+  </script>
+</body>
+
+</html>

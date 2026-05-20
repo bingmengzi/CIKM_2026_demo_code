@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraction Multiplication Visual Learning Tool</title>
+    <script src="https://lsbtta-fz-cdn.laoshibang.com/npm/tailwind/tailwind.min.js"></script>
+    <link href="https://lsbtta-fz-cdn.laoshibang.com/npm/fontawesome-free-7.1.0-web/css/all.min.css" rel="stylesheet">
+    <script src="https://lsbtta-fz-cdn.laoshibang.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-blue-50 text-slate-800 h-screen w-screen font-sans select-none flex flex-col text-xl overflow-y-auto">
+    <div class="fixed inset-0 z-0 pointer-events-none opacity-5">
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#4A90E2" stroke-width="0.5"/>
+                </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+        </svg>
+    </div>
+
+    <div id="app" class="relative z-10 w-full max-w-7xl mx-auto h-full flex flex-col p-6">
+        <header class="flex justify-between items-center mb-6 bg-white/95 rounded-2xl shadow-lg p-6 border border-blue-100 backdrop-blur-sm">
+            <h1 class="text-3xl font-bold text-blue-600 tracking-wide flex items-center gap-3">
+                <i class="fa-solid fa-square-root-variable"></i>
+                Fraction Multiplication Visualizer
+            </h1>
+            <div class="flex gap-4 items-center">
+                <div class="text-lg font-semibold text-slate-600">
+                    <i class="fa-solid fa-lightbulb text-yellow-500"></i>
+                    Discover multiplication through shading
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 min-h-0 flex gap-6 overflow-y-auto pb-6">
+            <div class="w-1/4 flex flex-col gap-6">
+                <div class="bg-white/95 rounded-2xl shadow-lg p-6 border border-blue-100 backdrop-blur-sm">
+                    <h2 class="text-2xl font-bold text-blue-600 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        Enter fractions
+                    </h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-lg font-semibold mb-3 text-slate-700">First fraction</label>
+                            <div class="flex items-center gap-3">
+                                <input type="number" id="numerator1" value="1" min="1" max="10" class="w-20 px-4 py-3 text-2xl text-center border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none">
+                                <div class="text-3xl font-bold text-slate-400">/</div>
+                                <input type="number" id="denominator1" value="2" min="2" max="10" class="w-20 px-4 py-3 text-2xl text-center border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-lg font-semibold mb-3 text-slate-700">Second fraction</label>
+                            <div class="flex items-center gap-3">
+                                <input type="number" id="numerator2" value="1" min="1" max="10" class="w-20 px-4 py-3 text-2xl text-center border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none">
+                                <div class="text-3xl font-bold text-slate-400">/</div>
+                                <input type="number" id="denominator2" value="5" min="2" max="10" class="w-20 px-4 py-3 text-2xl text-center border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <button id="resetBtn" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xl font-bold py-4 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1">
+                            <i class="fa-solid fa-rotate-right mr-2"></i>
+                            Restart
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg p-6 border-2 border-blue-200">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-calculator text-3xl text-blue-600"></i>
+                        <div class="text-xl font-bold text-blue-800">Expression</div>
+                    </div>
+                    <div id="formula" class="text-3xl font-bold text-center text-blue-700 py-4 bg-white rounded-xl shadow-inner">
+                        1/2 × 1/5 = ?
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col gap-6">
+                <div class="bg-white/95 rounded-2xl shadow-lg p-8 border border-blue-100 backdrop-blur-sm flex-1 min-h-0 flex flex-col">
+                    <h2 class="text-2xl font-bold text-blue-600 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-palette"></i>
+                        Interactive demonstration
+                    </h2>
+                    <div class="flex-1 flex items-center justify-center">
+                        <svg id="canvas" width="500" height="300" viewBox="0 0 500 300" class="max-w-full h-auto drop-shadow-xl"></svg>
+                    </div>
+                    <div id="stepInfo" class="mt-6 text-center text-xl font-semibold text-slate-600 bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        Click the button below to start Step 1
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-1/4 flex flex-col gap-6">
+                <div class="bg-white/95 rounded-2xl shadow-lg p-6 border border-blue-100 backdrop-blur-sm">
+                    <h2 class="text-2xl font-bold text-blue-600 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-list-ol"></i>
+                        Steps
+                    </h2>
+                    <div class="space-y-4">
+                        <button id="step1Btn" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-lg font-bold py-4 rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1">
+                            <i class="fa-solid fa-play mr-2"></i>
+                            First split
+                        </button>
+                        <button id="step2Btn" class="w-full bg-slate-300 text-slate-500 text-lg font-bold py-4 rounded-xl cursor-not-allowed opacity-60" disabled>
+                            <i class="fa-solid fa-pause mr-2"></i>
+                            Second split
+                        </button>
+                        <button id="step3Btn" class="w-full bg-slate-300 text-slate-500 text-lg font-bold py-4 rounded-xl cursor-not-allowed opacity-60" disabled>
+                            <i class="fa-solid fa-check mr-2"></i>
+                            Show answer
+                        </button>
+                    </div>
+                </div>
+
+                <div id="resultCard" class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-lg p-6 border-2 border-amber-200 hidden">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-star text-3xl text-amber-500"></i>
+                        <div class="text-xl font-bold text-amber-800">Result</div>
+                    </div>
+                    <div id="resultContent" class="text-center space-y-4">
+                        <div class="text-4xl font-bold text-amber-700" id="resultFraction"></div>
+                        <div class="text-lg text-amber-600 bg-white rounded-xl p-4 shadow-inner" id="resultExplanation"></div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl shadow-lg p-6 border-2 border-purple-200">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-book-open text-2xl text-purple-600"></i>
+                        <div class="text-lg font-bold text-purple-800">Key idea</div>
+                    </div>
+                    <div class="text-base text-purple-700 space-y-2 leading-relaxed">
+                        <p><strong>Meaning of fraction multiplication:</strong></p>
+                        <p>Finding “a fraction of a fraction”</p>
+                        <p class="text-sm text-purple-600 mt-3 bg-white rounded-lg p-3">
+                            <i class="fa-solid fa-lightbulb mr-1"></i>
+                            Two splits—what overlaps is the answer!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+        let currentStep = 0;
+        let num1, den1, num2, den2;
+        let firstParts = [];
+        let secondParts = [];
+
+        const canvas = document.getElementById('canvas');
+        const stepInfo = document.getElementById('stepInfo');
+        const step1Btn = document.getElementById('step1Btn');
+        const step2Btn = document.getElementById('step2Btn');
+        const step3Btn = document.getElementById('step3Btn');
+        const resetBtn = document.getElementById('resetBtn');
+        const resultCard = document.getElementById('resultCard');
+        const formula = document.getElementById('formula');
+
+        function getInputValues() {
+            num1 = parseInt(document.getElementById('numerator1').value) || 1;
+            den1 = parseInt(document.getElementById('denominator1').value) || 2;
+            num2 = parseInt(document.getElementById('numerator2').value) || 1;
+            den2 = parseInt(document.getElementById('denominator2').value) || 5;
+
+            if (num1 > den1) num1 = den1;
+            if (num2 > den2) num2 = den2;
+
+            document.getElementById('numerator1').value = num1;
+            document.getElementById('numerator2').value = num2;
+            
+            formula.textContent = `${num1}/${den1} × ${num2}/${den2} = ?`;
+        }
+
+        function initCanvas() {
+            canvas.innerHTML = '';
+            firstParts = [];
+            secondParts = [];
+            
+            const rect = document.createElementNS(SVG_NS, 'rect');
+            rect.setAttribute('x', '50');
+            rect.setAttribute('y', '50');
+            rect.setAttribute('width', '400');
+            rect.setAttribute('height', '200');
+            rect.setAttribute('fill', '#F0F4F8');
+            rect.setAttribute('stroke', '#4A90E2');
+            rect.setAttribute('stroke-width', '3');
+            rect.setAttribute('rx', '8');
+            canvas.appendChild(rect);
+        }
+
+        function step1() {
+            getInputValues();
+            stepInfo.textContent = `Split horizontally into ${den1} equal parts, shade ${num1} part(s)`;
+            
+            const partWidth = 400 / den1;
+            
+            for (let i = 0; i < den1; i++) {
+                const part = document.createElementNS(SVG_NS, 'rect');
+                part.setAttribute('x', 50 + i * partWidth);
+                part.setAttribute('y', '50');
+                part.setAttribute('width', partWidth);
+                part.setAttribute('height', '200');
+                part.setAttribute('fill', i < num1 ? '#2E5C8A' : 'transparent');
+                part.setAttribute('stroke', '#4A90E2');
+                part.setAttribute('stroke-width', '2');
+                part.setAttribute('opacity', '0');
+                canvas.appendChild(part);
+                firstParts.push(part);
+                
+                anime({
+                    targets: part,
+                    opacity: i < num1 ? 0.7 : 0,
+                    duration: 600,
+                    delay: i * 100,
+                    easing: 'easeOutQuad'
+                });
+            }
+            
+            for (let i = 1; i < den1; i++) {
+                const line = document.createElementNS(SVG_NS, 'line');
+                line.setAttribute('x1', 50 + i * partWidth);
+                line.setAttribute('y1', '50');
+                line.setAttribute('x2', 50 + i * partWidth);
+                line.setAttribute('y2', '250');
+                line.setAttribute('stroke', '#4A90E2');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('stroke-dasharray', '5,5');
+                canvas.appendChild(line);
+            }
+            
+            step1Btn.disabled = true;
+            step1Btn.classList.add('opacity-60', 'cursor-not-allowed', 'bg-slate-300', 'text-slate-500');
+            step1Btn.classList.remove('bg-gradient-to-r', 'from-emerald-500', 'to-emerald-600', 'hover:from-emerald-600', 'hover:to-emerald-700');
+            
+            setTimeout(() => {
+                step2Btn.disabled = false;
+                step2Btn.classList.remove('opacity-60', 'cursor-not-allowed', 'bg-slate-300', 'text-slate-500');
+                step2Btn.classList.add('bg-gradient-to-r', 'from-blue-500', 'to-blue-600', 'hover:from-blue-600', 'hover:to-blue-700');
+            }, den1 * 100 + 600);
+            
+            currentStep = 1;
+        }
+
+        function step2() {
+            stepInfo.textContent = `Within the shaded region, split vertically into ${den2} equal parts, then shade ${num2} part(s)`;
+            
+            const partWidth = 400 / den1;
+            const partHeight = 200 / den2;
+            
+            for (let i = 0; i < num1; i++) {
+                for (let j = 0; j < den2; j++) {
+                    const part = document.createElementNS(SVG_NS, 'rect');
+                    part.setAttribute('x', 50 + i * partWidth);
+                    part.setAttribute('y', 50 + j * partHeight);
+                    part.setAttribute('width', partWidth);
+                    part.setAttribute('height', partHeight);
+                    part.setAttribute('fill', j < num2 ? '#1e3a5f' : '#2E5C8A');
+                    part.setAttribute('stroke', '#4A90E2');
+                    part.setAttribute('stroke-width', '2');
+                    part.setAttribute('opacity', '0');
+                    canvas.appendChild(part);
+                    secondParts.push(part);
+                    
+                    anime({
+                        targets: part,
+                        opacity: 0.9,
+                        duration: 600,
+                        delay: j * 80 + i * 150,
+                        easing: 'easeOutQuad'
+                    });
+                }
+            }
+            
+            for (let j = 1; j < den2; j++) {
+                for (let i = 0; i < num1; i++) {
+                    const line = document.createElementNS(SVG_NS, 'line');
+                    line.setAttribute('x1', 50 + i * partWidth);
+                    line.setAttribute('y1', 50 + j * partHeight);
+                    line.setAttribute('x2', 50 + (i + 1) * partWidth);
+                    line.setAttribute('y2', 50 + j * partHeight);
+                    line.setAttribute('stroke', '#4A90E2');
+                    line.setAttribute('stroke-width', '2');
+                    line.setAttribute('stroke-dasharray', '5,5');
+                    canvas.appendChild(line);
+                }
+            }
+            
+            step2Btn.disabled = true;
+            step2Btn.classList.add('opacity-60', 'cursor-not-allowed', 'bg-slate-300', 'text-slate-500');
+            step2Btn.classList.remove('bg-gradient-to-r', 'from-blue-500', 'to-blue-600', 'hover:from-blue-600', 'hover:to-blue-700');
+            
+            setTimeout(() => {
+                step3Btn.disabled = false;
+                step3Btn.classList.remove('opacity-60', 'cursor-not-allowed', 'bg-slate-300', 'text-slate-500');
+                step3Btn.classList.add('bg-gradient-to-r', 'from-purple-500', 'to-purple-600', 'hover:from-purple-600', 'hover:to-purple-700');
+            }, num1 * den2 * 80 + 600);
+            
+            currentStep = 2;
+        }
+
+        function step3() {
+            const resultNumerator = num1 * num2;
+            const resultDenominator = den1 * den2;
+            
+            let gcd = function(a, b) {
+                return b === 0 ? a : gcd(b, a % b);
+            };
+            const divisor = gcd(resultNumerator, resultDenominator);
+            const simplifiedNum = resultNumerator / divisor;
+            const simplifiedDen = resultDenominator / divisor;
+            
+            stepInfo.innerHTML = `<i class="fa-solid fa-check-circle text-emerald-500 mr-2"></i>Notice this: the darkest overlap is <span class="text-3xl font-bold text-blue-700">${simplifiedNum}/${simplifiedDen}</span> of the whole rectangle.`;
+            
+            formula.textContent = `${num1}/${den1} × ${num2}/${den2} = ${simplifiedNum}/${simplifiedDen}`;
+            
+            const partWidth = 400 / den1;
+            const partHeight = 200 / den2;
+            
+            for (let i = 0; i < num1; i++) {
+                for (let j = 0; j < num2; j++) {
+                    const index = i * den2 + j;
+                    if (secondParts[index]) {
+                        anime({
+                            targets: secondParts[index],
+                            opacity: [0.9, 1, 0.9],
+                            scale: [1, 1.02, 1],
+                            duration: 800,
+                            easing: 'easeInOutQuad',
+                            loop: 2
+                        });
+                    }
+                }
+            }
+            
+            document.getElementById('resultFraction').textContent = `${simplifiedNum}/${simplifiedDen}`;
+            document.getElementById('resultExplanation').innerHTML = `The whole rectangle is divided into <strong>${resultDenominator}</strong> small cells.<br>The dark overlap covers <strong>${resultNumerator}</strong> cell(s).<br>So the answer is <strong>${simplifiedNum}/${simplifiedDen}</strong>.`;
+            
+            resultCard.classList.remove('hidden');
+            anime({
+                targets: resultCard,
+                scale: [0.8, 1],
+                opacity: [0, 1],
+                duration: 600,
+                easing: 'easeOutElastic(1, .8)'
+            });
+            
+            step3Btn.disabled = true;
+            step3Btn.classList.add('opacity-60', 'cursor-not-allowed', 'bg-slate-300', 'text-slate-500');
+            step3Btn.classList.remove('bg-gradient-to-r', 'from-purple-500', 'to-purple-600', 'hover:from-purple-600', 'hover:to-purple-700');
+            
+            currentStep = 3;
+        }
+
+        function reset() {
+            getInputValues();
+            initCanvas();
+            currentStep = 0;
+            
+            stepInfo.textContent = 'Click the button below to start Step 1';
+            resultCard.classList.add('hidden');
+            
+            step1Btn.disabled = false;
+            step1Btn.classList.remove('opacity-60', 'cursor-not-allowed', 'bg-slate-300', 'text-slate-500');
+            step1Btn.classList.add('bg-gradient-to-r', 'from-emerald-500', 'to-emerald-600', 'hover:from-emerald-600', 'hover:to-emerald-700');
+            
+            step2Btn.disabled = true;
+            step2Btn.classList.add('opacity-60', 'cursor-not-allowed', 'bg-slate-300', 'text-slate-500');
+            step2Btn.classList.remove('bg-gradient-to-r', 'from-blue-500', 'to-blue-600', 'hover:from-blue-600', 'hover:to-blue-700');
+            
+            step3Btn.disabled = true;
+            step3Btn.classList.add('opacity-60', 'cursor-not-allowed', 'bg-slate-300', 'text-slate-500');
+            step3Btn.classList.remove('bg-gradient-to-r', 'from-purple-500', 'to-purple-600', 'hover:from-purple-600', 'hover:to-purple-700');
+        }
+
+        step1Btn.addEventListener('click', step1);
+        step2Btn.addEventListener('click', step2);
+        step3Btn.addEventListener('click', step3);
+        resetBtn.addEventListener('click', reset);
+
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('change', () => {
+                if (currentStep > 0) {
+                    reset();
+                } else {
+                    getInputValues();
+                }
+            });
+        });
+
+        getInputValues();
+        initCanvas();
+    </script>
+</body>
+</html>

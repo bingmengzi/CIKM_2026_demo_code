@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>📐 Protractor Pro - Fun Angle Measuring</title>
+  
+  <!-- External libraries -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  
+  <style>
+    /* Custom styles */
+    body {
+      touch-action: none; /* Prevent page scrolling while dragging on mobile */
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    /* Drawing area background grid */
+    .grid-bg {
+      background-image: 
+        linear-gradient(rgba(200, 200, 255, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(200, 200, 255, 0.3) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    /* Protractor styles */
+    #protractor-wrapper {
+      position: absolute;
+      width: 400px;
+      height: 220px; /* semicircle height + a bit of bottom */
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      cursor: grab;
+      z-index: 20;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+      transform-origin: center bottom;
+    }
+
+    #protractor-wrapper:active {
+      cursor: grabbing;
+    }
+
+    /* Angle-line layer */
+    #angle-canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none; /* Let pointer pass through to interact with the protractor */
+    }
+
+    /* Control styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 24px;
+      width: 24px;
+      border-radius: 50%;
+      background: #4F46E5;
+      margin-top: -10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      background: #CBD5E1;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body class="bg-blue-50 h-screen flex flex-col">
+
+  <!-- Top title bar -->
+  <header class="bg-white shadow-sm p-3 z-30 flex justify-between items-center shrink-0">
+    <div class="flex items-center gap-2">
+      <div class="bg-indigo-100 p-2 rounded-lg">
+        <span class="text-2xl">📐</span>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-slate-800">Protractor Pro</h1>
+        <p class="text-xs text-slate-500">Drag and rotate the protractor to measure angles</p>
+      </div>
+    </div>
+    <div class="text-right hidden sm:block">
+      <div class="text-sm font-semibold text-indigo-600">Current Challenge</div>
+      <div class="text-xs text-slate-400">Read the measure of the angle below</div>
+    </div>
+  </header>
+
+  <!-- Main workspace -->
+  <main class="flex-1 relative overflow-hidden grid-bg select-none" id="workspace">
+    
+    <!-- Angle layer (bottom) -->
+    <div id="angle-canvas-container" class="flex justify-center items-center">
+      <!-- SVG dynamic drawing -->
+      <svg id="angle-svg" width="600" height="600" viewBox="-300 -300 600 600" class="overflow-visible">
+        <!-- Angle fill animation -->
+        <path id="angle-arc" d="" fill="rgba(99, 102, 241, 0.2)" stroke="none"></path>
+        
+        <!-- Baseline (fixed horizontal) -->
+        <line x1="0" y1="0" x2="250" y2="0" stroke="#334155" stroke-width="4" stroke-linecap="round" />
+        
+        <!-- Dynamic ray (rotates) -->
+        <line id="dynamic-line" x1="0" y1="0" x2="250" y2="0" stroke="#334155" stroke-width="4" stroke-linecap="round" />
+        
+        <!-- Vertex -->
+        <circle cx="0" cy="0" r="6" fill="#EF4444" />
+        <text x="-20" y="30" class="text-sm fill-slate-500 font-bold">O</text>
+      </svg>
+    </div>
+
+    <!-- Protractor layer (floating) -->
+    <div id="protractor-wrapper">
+      <!-- Transparent protractor drawn with SVG -->
+      <svg viewBox="0 0 400 220" class="w-full h-full drop-shadow-lg">
+        <!-- Semicircle body -->
+        <path d="M 20,200 A 180,180 0 0,1 380,200 L 340,200 A 140,140 0 0,0 60,200 Z" fill="rgba(255, 255, 255, 0.85)" stroke="#94A3B8" stroke-width="1"/>
+        <line x1="20" y1="200" x2="380" y2="200" stroke="#94A3B8" stroke-width="1" />
+        
+        <!-- Center crosshair -->
+        <line x1="200" y1="190" x2="200" y2="210" stroke="#EF4444" stroke-width="2" />
+        <line x1="190" y1="200" x2="210" y2="200" stroke="#EF4444" stroke-width="2" />
+        
+        <!-- Tick marks group (generated by JS) -->
+        <g id="ticks-container"></g>
+      </svg>
+    </div>
+
+    <!-- Feedback toast -->
+    <div id="feedback-msg" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-full shadow-lg border border-slate-200 opacity-0 transition-opacity duration-300 pointer-events-none">
+      <span class="text-lg mr-2">✨</span>
+      <span class="font-bold text-slate-700 msg-text">Awesome!</span>
+    </div>
+
+  </main>
+
+  <!-- Bottom control panel -->
+  <footer class="bg-white border-t border-slate-200 p-4 z-30 shrink-0">
+    <div class="max-w-4xl mx-auto flex flex-col md:flex-row gap-4 items-center justify-between">
+      
+      <!-- Rotation control -->
+      <div class="flex items-center gap-3 w-full md:w-1/3">
+        <span class="text-slate-500 text-sm whitespace-nowrap">🔄 Rotate protractor</span>
+        <input type="range" id="rotate-slider" min="-180" max="180" value="0" step="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+      </div>
+
+      <!-- Answer area -->
+      <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+        <span class="text-sm font-bold text-slate-600">Angle:</span>
+        <input type="number" id="answer-input" class="w-16 px-2 py-1 border border-slate-300 rounded text-center font-bold text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="?">
+        <span class="text-slate-500">°</span>
+        <button onclick="checkAnswer()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1 rounded shadow-sm transition-colors text-sm font-bold">
+          Submit
+        </button>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-2">
+        <button onclick="resetProtractor()" class="px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded border border-slate-300 transition-colors">
+          Reset tool
+        </button>
+        <button onclick="newQuestion()" class="px-4 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded shadow-md transition-colors flex items-center gap-1">
+          <span>🎲</span> Next
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // === State ===
+    const state = {
+      currentAngle: 45,
+      protractorRotation: 0,
+      protractorPos: { x: 0, y: 0 },
+      isDragging: false,
+      startPos: { x: 0, y: 0 }
+    };
+
+    // === DOM elements ===
+    const els = {
+      protractor: document.getElementById('protractor-wrapper'),
+      slider: document.getElementById('rotate-slider'),
+      dynamicLine: document.getElementById('dynamic-line'),
+      answerInput: document.getElementById('answer-input'),
+      feedback: document.getElementById('feedback-msg'),
+      feedbackText: document.querySelector('.msg-text'),
+      angleArc: document.getElementById('angle-arc'),
+      ticksGroup: document.getElementById('ticks-container')
+    };
+
+    // === Init ===
+    function init() {
+      drawProtractorTicks();
+      centerProtractor();
+      newQuestion();
+      setupEventListeners();
+    }
+
+    // 1. Draw protractor tick marks (SVG)
+    function drawProtractorTicks() {
+      const cx = 200, cy = 200;
+      const rOuter = 180;
+      const rInner = 140; // inner scale start radius
+      
+      let svgContent = '';
+
+      for (let i = 0; i <= 180; i++) {
+        const rad = (Math.PI * i) / 180;
+  // In SVG, 0° is to the right (3 o'clock). We offset so 0° starts on the left (9 o'clock).
+  // We set: left side is 0° (outer scale), right side is 180°.
+        
+  const xDir = Math.cos(Math.PI - rad); // start from left
+  const yDir = Math.sin(Math.PI - rad) * -1; // up is negative
+
+        let len = 5;
+        if (i % 10 === 0) len = 15;
+        else if (i % 5 === 0) len = 10;
+
+  // Outer tick mark
+        const x1 = cx + (rOuter) * xDir;
+        const y1 = cy + (rOuter) * yDir;
+        const x2 = cx + (rOuter - len) * xDir;
+        const y2 = cy + (rOuter - len) * yDir;
+
+        svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#64748B" stroke-width="${i%10===0?2:1}" />`;
+
+        // Tick labels
+        if (i % 10 === 0) {
+          // Outer labels (0 on the left)
+          const txOuter = cx + (rOuter - 25) * xDir;
+          const tyOuter = cy + (rOuter - 25) * yDir;
+          svgContent += `<text x="${txOuter}" y="${tyOuter}" font-size="10" text-anchor="middle" dominant-baseline="middle" fill="#334155">${i}</text>`;
+
+          // Inner labels (180 on the left)
+          const txInner = cx + (rInner + 15) * xDir;
+          const tyInner = cy + (rInner + 15) * yDir;
+          svgContent += `<text x="${txInner}" y="${tyInner}" font-size="10" text-anchor="middle" dominant-baseline="middle" fill="#EF4444">${180-i}</text>`;
+        }
+      }
+      els.ticksGroup.innerHTML = svgContent;
+    }
+
+    // 2. Generate a new question
+    function newQuestion() {
+      // Random angle between 10 and 170 degrees
+      const angle = Math.floor(Math.random() * 160) + 10; 
+      state.currentAngle = angle;
+      
+      // Clear input
+      els.answerInput.value = '';
+      els.answerInput.style.borderColor = '#CBD5E1';
+      
+      // Animate the ray
+      anime({
+        targets: '#dynamic-line',
+        duration: 1000,
+        easing: 'spring(1, 80, 10, 0)',
+        update: function(anim) {
+          // SVG rotation center is 0,0
+          const current = 0 - (angle * (anim.progress / 100));
+          els.dynamicLine.setAttribute('transform', `rotate(${current})`);
+        }
+      });
+
+      // Hide the arc overlay
+      els.angleArc.setAttribute('d', '');
+      
+      showFeedback('Measure this angle', 'neutral');
+    }
+
+    // 3. Reset the protractor
+    function resetProtractor() {
+      centerProtractor();
+      state.protractorRotation = 0;
+      els.slider.value = 0;
+      updateProtractorTransform();
+    }
+
+    function centerProtractor() {
+      // Simple centering
+      els.protractor.style.left = '50%';
+      els.protractor.style.top = '60%'; // slightly lower for better visibility
+      els.protractor.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+      
+      // Reset internal position state (we use absolute left/top during dragging for simplicity)
+    }
+
+    function updateProtractorTransform() {
+      // Keep current position; only change rotation
+      els.protractor.style.transform = `translate(-50%, -50%) rotate(${state.protractorRotation}deg)`;
+    }
+
+    // 4. Check the answer
+    function checkAnswer() {
+      const userVal = parseInt(els.answerInput.value);
+      if (isNaN(userVal)) {
+        showFeedback('Please enter a number 🤔', 'error');
+        return;
+      }
+
+      const diff = Math.abs(userVal - state.currentAngle);
+      
+      // Allow up to 2 degrees of error
+      if (diff <= 2) {
+        showFeedback('Correct! Great job!', 'success');
+        els.answerInput.style.borderColor = '#10B981';
+        drawAngleArc(); // show the arc
+      } else {
+        showFeedback(`Try again. The correct answer is ${state.currentAngle}°`, 'error');
+        els.answerInput.style.borderColor = '#EF4444';
+        drawAngleArc(); // still show it to help understanding
+      }
+    }
+
+    function drawAngleArc() {
+      // Draw a sector to visualize the angle
+      const startX = 50;
+      const startY = 0;
+      const radius = 50;
+      const angleRad = (state.currentAngle * Math.PI) / 180;
+      
+      // Compute endpoint (SVG y-axis is down; we rotate the line with a negative angle)
+      const endX = Math.cos(-angleRad) * radius;
+      const endY = Math.sin(-angleRad) * radius; // negative angle goes upward
+
+      const largeArcFlag = state.currentAngle > 180 ? 1 : 0;
+      
+  // M 0 0 L radius 0 A r r 0 flag 0 endX endY Z
+  // sweep-flag=0 because the arc goes upward (-y)
+      const d = `M 0 0 L ${radius} 0 A ${radius} ${radius} 0 ${largeArcFlag} 0 ${endX} ${endY} Z`;
+      
+      els.angleArc.setAttribute('d', d);
+      
+      anime({
+        targets: '#angle-arc',
+        opacity: [0, 1],
+        duration: 500
+      });
+    }
+
+    function showFeedback(text, type) {
+      els.feedbackText.innerText = text;
+      
+      // Color styling
+      const bg = els.feedback;
+      if (type === 'success') {
+        bg.className = bg.className.replace(/border-\w+-\d+/, 'border-emerald-200').replace(/text-\w+-\d+/, 'text-emerald-700');
+        els.feedbackText.innerText = "🎉 " + text;
+      } else if (type === 'error') {
+         bg.className = bg.className.replace(/border-\w+-\d+/, 'border-red-200').replace(/text-\w+-\d+/, 'text-red-700');
+      }
+
+      // Animate in
+      bg.style.opacity = '1';
+      bg.style.top = '10%';
+      
+      setTimeout(() => {
+        bg.style.opacity = '0';
+      }, 3000);
+    }
+
+    // === Events (drag + rotate) ===
+    function setupEventListeners() {
+      // Rotation slider
+      els.slider.addEventListener('input', (e) => {
+        state.protractorRotation = e.target.value;
+        updateProtractorTransform();
+      });
+
+      // Drag logic
+      const p = els.protractor;
+      
+      const onMouseDown = (e) => {
+        state.isDragging = true;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        // Track pointer relative to element center
+        const rect = p.getBoundingClientRect();
+        // Offset = pointer position - element center
+        state.startPos.x = clientX - (rect.left + rect.width/2);
+        state.startPos.y = clientY - (rect.top + rect.height/2);
+        
+        p.style.cursor = 'grabbing';
+      };
+
+      const onMouseMove = (e) => {
+        if (!state.isDragging) return;
+        e.preventDefault(); // prevent scrolling on touch
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        // New center position = pointer position - initial offset
+        // We use absolute pixels for dragging.
+        const newLeft = clientX - state.startPos.x;
+        const newTop = clientY - state.startPos.y;
+
+        p.style.left = `${newLeft}px`;
+        p.style.top = `${newTop}px`;
+      };
+
+      const onMouseUp = () => {
+        state.isDragging = false;
+        p.style.cursor = 'grab';
+      };
+
+      p.addEventListener('mousedown', onMouseDown);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+
+      // Touch support
+      p.addEventListener('touchstart', onMouseDown, {passive: false});
+      window.addEventListener('touchmove', onMouseMove, {passive: false});
+      window.addEventListener('touchend', onMouseUp);
+    }
+
+  // Start the app
+    window.addEventListener('DOMContentLoaded', init);
+
+  </script>
+</body>
+</html>

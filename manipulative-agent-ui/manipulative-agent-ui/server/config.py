@@ -14,11 +14,11 @@ LLM_TASK_VERIFY = "gemini-3.1-pro-preview"       # 验证与判断模型
 LLM_TASK_IMAGE = "gemini-3-pro-image-preview"             # 图像生成模型
 
 # 统一 API 配置
-LLM_API_KEY = "sk-dd6RNMgExpaELGLkcESjXrO4Q1vFI1D3rqgIohS87fDzvYEb"
-LLM_API_URL = "https://www.msuicode.com/v1"
+LLM_API_KEY = ""
+LLM_API_URL = ""
 
-IMAGE_API_KEY = "sk-7py85fKLExjParjcTSaUrDUsJxhxiAFAZfijcKMv967LHe3l"
-IMAGE_API_URL = "https://www.msuicode.com/v1"
+IMAGE_API_KEY = ""
+IMAGE_API_URL = ""
 
 # Component library
 COMPONENT_MAPPING_PATH = SERVER_ROOT / "data" / "component_mapping.json"

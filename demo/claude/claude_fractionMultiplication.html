@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧮 Fraction Multiplication Visual Learning Tool</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      margin-bottom: 20px;
+    }
+
+    .fraction-input {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0 10px;
+    }
+
+    .fraction-input input {
+      width: 80px;
+      text-align: center;
+      font-size: 24px;
+      border: 2px solid #667eea;
+      border-radius: 8px;
+      padding: 8px;
+      margin: 3px;
+      transition: all 0.3s;
+    }
+
+    .fraction-input input:focus {
+      outline: none;
+      border-color: #764ba2;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .fraction-line {
+      width: 80px;
+      height: 2px;
+      background: #333;
+      margin: 2px 0;
+    }
+
+    #canvas {
+      width: 100%;
+      max-width: 500px;
+      height: 300px;
+      margin: 20px auto;
+      display: block;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0;
+      padding: 0 20px;
+    }
+
+    .step {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      background: #f0f0f0;
+      margin: 0 5px;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .step.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      transform: scale(1.05);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .step.completed {
+      background: #10b981;
+      color: white;
+    }
+
+    .btn {
+      padding: 12px 30px;
+      font-size: 18px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: bold;
+      margin: 5px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .formula {
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      margin: 20px 0;
+      color: #667eea;
+    }
+
+    .instruction {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .result-box {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 24px;
+      margin-top: 20px;
+      display: none;
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .pulse {
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+  <!-- Title card -->
+    <div class="card">
+      <h1 style="font-size: 32px; font-weight: bold; text-align: center; color: #667eea; margin-bottom: 10px;">
+  🧮 Fraction Multiplication Visual Learning Tool
+      </h1>
+      <p style="text-align: center; color: #666; font-size: 16px;">
+  Understand fraction multiplication through visuals
+      </p>
+    </div>
+
+  <!-- Input card -->
+    <div class="card">
+      <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #333;">
+  📝 Step 1: Enter two fractions
+      </h2>
+      
+      <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; margin: 30px 0;">
+        <div class="fraction-input">
+          <input type="number" id="num1" value="1" min="1" max="10">
+          <div class="fraction-line"></div>
+          <input type="number" id="den1" value="2" min="1" max="10">
+        </div>
+        
+        <span style="font-size: 36px; margin: 0 20px; color: #667eea;">×</span>
+        
+        <div class="fraction-input">
+          <input type="number" id="num2" value="1" min="1" max="10">
+          <div class="fraction-line"></div>
+          <input type="number" id="den2" value="5" min="1" max="10">
+        </div>
+        
+        <span style="font-size: 36px; margin: 0 20px; color: #667eea;">=</span>
+        
+        <span style="font-size: 36px; color: #10b981; font-weight: bold;" id="result">?</span>
+      </div>
+
+      <div style="text-align: center;">
+  <button class="btn btn-primary" onclick="startVisualization()">Start visualization 🚀</button>
+  <button class="btn btn-secondary" onclick="reset()">Reset 🔄</button>
+      </div>
+    </div>
+
+  <!-- Step indicator -->
+    <div class="card">
+      <div class="step-indicator">
+  <div class="step" id="step1">① Enter fractions</div>
+  <div class="step" id="step2">② Show the first fraction</div>
+  <div class="step" id="step3">③ Subdivide again</div>
+  <div class="step" id="step4">④ Get the result</div>
+      </div>
+    </div>
+
+  <!-- Visualization card -->
+    <div class="card">
+      <div class="instruction" id="instruction">
+        👋 Welcome! Enter two fractions first, then click “Start visualization”.
+      </div>
+
+      <div class="formula" id="formula"></div>
+
+      <canvas id="canvas"></canvas>
+
+      <div style="text-align: center; margin-top: 20px;">
+        <button class="btn btn-primary" id="nextBtn" onclick="nextStep()" disabled>
+          Next ▶
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox"></div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+  // Set canvas size
+    canvas.width = 500;
+    canvas.height = 300;
+    
+    let currentStep = 0;
+    let num1, den1, num2, den2;
+    let rectX = 50;
+    let rectY = 50;
+    let rectWidth = 400;
+    let rectHeight = 200;
+    
+    function startVisualization() {
+      // Read inputs
+      num1 = parseInt(document.getElementById('num1').value);
+      den1 = parseInt(document.getElementById('den1').value);
+      num2 = parseInt(document.getElementById('num2').value);
+      den2 = parseInt(document.getElementById('den2').value);
+      
+      // Validate inputs
+      if (num1 <= 0 || den1 <= 0 || num2 <= 0 || den2 <= 0 || num1 > den1 || num2 > den2) {
+        alert('Please enter valid fractions (numerator must not exceed denominator, and all numbers must be > 0).');
+        return;
+      }
+      
+      // Update formula
+      document.getElementById('formula').textContent = 
+        `${num1}/${den1} × ${num2}/${den2} = ?`;
+      
+      // Reset steps
+      currentStep = 0;
+      updateStepIndicator();
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Enable Next button
+      document.getElementById('nextBtn').disabled = false;
+      document.getElementById('resultBox').style.display = 'none';
+      
+      // Update instructions
+      updateInstruction();
+      
+      // Run step 1
+      nextStep();
+    }
+    
+    function nextStep() {
+      currentStep++;
+      updateStepIndicator();
+      updateInstruction();
+      
+      switch(currentStep) {
+        case 1:
+          step1_drawInitialRectangle();
+          break;
+        case 2:
+          step2_divideAndColorFirst();
+          break;
+        case 3:
+          step3_subdivideColored();
+          break;
+        case 4:
+          step4_showResult();
+          break;
+      }
+    }
+    
+    function step1_drawInitialRectangle() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw the whole rectangle
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+      
+      // Caption
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Whole rectangle (represents the whole “1”)', canvas.width / 2, 30);
+      
+      // Animation
+      animateRectangle();
+    }
+    
+    function animateRectangle() {
+      anime({
+        targets: '#canvas',
+        scale: [0.95, 1],
+        duration: 500,
+        easing: 'easeOutElastic(1, .5)'
+      });
+    }
+    
+    function step2_divideAndColorFirst() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Division size
+      const partHeight = rectHeight / den1;
+      
+      // Draw all parts
+      for (let i = 0; i < den1; i++) {
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(rectX, rectY + i * partHeight, rectWidth, partHeight);
+      }
+      
+      // Color the first num1 parts
+      ctx.fillStyle = 'rgba(102, 126, 234, 0.6)';
+      for (let i = 0; i < num1; i++) {
+        ctx.fillRect(rectX, rectY + i * partHeight, rectWidth, partHeight);
+      }
+      
+      // Outer border
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+      
+      // Captions
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Divide the rectangle into ${den1} equal parts; color ${num1} parts`, canvas.width / 2, 30);
+      ctx.fillText(`The blue area represents ${num1}/${den1}`, canvas.width / 2, canvas.height - 20);
+    }
+    
+    function step3_subdivideColored() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const partHeight = rectHeight / den1;
+      
+      // First division (gray guide)
+      for (let i = 0; i < den1; i++) {
+        if (i < num1) {
+          ctx.fillStyle = 'rgba(200, 200, 200, 0.3)';
+          ctx.fillRect(rectX, rectY + i * partHeight, rectWidth, partHeight);
+        }
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(rectX, rectY + i * partHeight, rectWidth, partHeight);
+      }
+      
+      // Second division inside the colored area
+      const subPartWidth = rectWidth / den2;
+      for (let i = 0; i < num1; i++) {
+        for (let j = 0; j < den2; j++) {
+          // Division line
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(rectX + j * subPartWidth, rectY + i * partHeight, subPartWidth, partHeight);
+          
+          // Color the first num2 subparts
+          if (j < num2) {
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
+            ctx.fillRect(rectX + j * subPartWidth, rectY + i * partHeight, subPartWidth, partHeight);
+          }
+        }
+      }
+      
+      // Outer border
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+      
+      // Captions
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Inside the blue area, divide into ${den2} parts and color ${num2} parts`, canvas.width / 2, 30);
+      ctx.fillText(`The green area represents ${num2}/${den2} of ${num1}/${den1}`, canvas.width / 2, canvas.height - 20);
+    }
+    
+    function step4_showResult() {
+      // Draw the full grid
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const totalParts = den1 * den2;
+      const coloredParts = num1 * num2;
+      
+  // Draw all small cells
+      const rows = den1;
+      const cols = den2;
+      const cellWidth = rectWidth / cols;
+      const cellHeight = rectHeight / rows;
+      
+      let colored = 0;
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+          // Should this cell be colored?
+          if (i < num1 && j < num2) {
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
+            ctx.fillRect(rectX + j * cellWidth, rectY + i * cellHeight, cellWidth, cellHeight);
+            colored++;
+          }
+          
+          // Cell border
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(rectX + j * cellWidth, rectY + i * cellHeight, cellWidth, cellHeight);
+        }
+      }
+      
+  // Outer border
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+      
+  // Caption
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+  ctx.fillText(`The whole rectangle is split into ${totalParts} parts; ${coloredParts} are colored`, canvas.width / 2, 30);
+      
+  // Show result
+      const resultNum = num1 * num2;
+      const resultDen = den1 * den2;
+      const gcdValue = gcd(resultNum, resultDen);
+      const simplifiedNum = resultNum / gcdValue;
+      const simplifiedDen = resultDen / gcdValue;
+      
+      document.getElementById('result').textContent = `${resultNum}/${resultDen}`;
+      
+      let resultText = `🎉 The answer is ${resultNum}/${resultDen}`;
+      if (gcdValue > 1) {
+        resultText += ` = ${simplifiedNum}/${simplifiedDen} (simplified)`;
+      }
+      
+      document.getElementById('resultBox').innerHTML = resultText;
+      document.getElementById('resultBox').style.display = 'block';
+      
+      // Update formula
+      document.getElementById('formula').textContent = 
+        `${num1}/${den1} × ${num2}/${den2} = ${resultNum}/${resultDen}`;
+      
+      // Disable Next button
+      document.getElementById('nextBtn').disabled = true;
+    }
+    
+    function gcd(a, b) {
+      return b === 0 ? a : gcd(b, a % b);
+    }
+    
+    function updateStepIndicator() {
+      for (let i = 1; i <= 4; i++) {
+        const stepEl = document.getElementById(`step${i}`);
+        stepEl.classList.remove('active', 'completed');
+        
+        if (i < currentStep) {
+          stepEl.classList.add('completed');
+        } else if (i === currentStep) {
+          stepEl.classList.add('active');
+        }
+      }
+    }
+    
+    function updateInstruction() {
+      const instructions = [
+        '👋 Welcome! Enter two fractions first, then click “Start visualization”.',
+        '📐 This is a whole rectangle, representing the whole “1”. Click “Next” to continue.',
+        `✂️ Now divide the rectangle into ${den1} equal parts and color ${num1} parts. This is ${num1}/${den1}.`,
+        `🎨 Inside the colored area, divide into ${den2} equal parts and color ${num2} parts. This represents ${num2}/${den2} of ${num1}/${den1}.`,
+        `🎯 Look at the whole rectangle: it is divided into ${den1 * den2} small cells. ${num1 * num2} cells are green, so the answer is ${num1 * num2}/${den1 * den2}!`
+      ];
+      
+      document.getElementById('instruction').innerHTML = instructions[currentStep];
+      
+  // Pulse highlight
+      const instructionEl = document.getElementById('instruction');
+      instructionEl.classList.add('pulse');
+      setTimeout(() => {
+        instructionEl.classList.remove('pulse');
+      }, 1500);
+    }
+    
+    function reset() {
+      currentStep = 0;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('formula').textContent = '';
+      document.getElementById('result').textContent = '?';
+      document.getElementById('resultBox').style.display = 'none';
+      document.getElementById('nextBtn').disabled = true;
+      
+  // Reset step indicator
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById(`step${i}`).classList.remove('active', 'completed');
+      }
+      
+      updateInstruction();
+    }
+    
+  // Init
+    updateInstruction();
+  </script>
+</body>
+</html>

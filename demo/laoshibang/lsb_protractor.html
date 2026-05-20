@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Use a Protractor - Interactive Learning</title>
+<script src="https://lsbtta-fz-cdn.laoshibang.com/npm/tailwind/tailwind.min.js"></script>
+<link href="https://lsbtta-fz-cdn.laoshibang.com/npm/fontawesome-free-7.1.0-web/css/all.min.css" rel="stylesheet">
+<script src="https://lsbtta-fz-cdn.laoshibang.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-blue-50 text-slate-800 h-screen w-screen font-sans select-none flex flex-col overflow-hidden"><span style="font-size: 14px;color: #33333359;position: absolute;bottom: 8px;left: 50%;transform: translateX(-50%);">AI-generated content</span>
+<div class="fixed inset-0 z-0 pointer-events-none opacity-5" style="background-image: repeating-linear-gradient(0deg, #0277BD 0px, #0277BD 1px, transparent 1px, transparent 20px), repeating-linear-gradient(90deg, #0277BD 0px, #0277BD 1px, transparent 1px, transparent 20px);"></div>
+
+<div id="app" class="relative z-10 w-full max-w-7xl mx-auto h-full flex flex-col p-6">
+<header class="flex justify-between items-center mb-6 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-blue-100">
+<h1 class="text-3xl font-bold text-blue-600 tracking-wide flex items-center gap-3">
+<i class="fas fa-drafting-compass text-4xl"></i> How to Use a Protractor
+</h1>
+<div class="flex gap-4 items-center">
+<div class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-bold text-xl shadow-md">
+Current step: <span id="currentStep">1</span>/4
+</div>
+</div>
+</header>
+
+<main class="flex-1 min-h-0 flex gap-6">
+<div class="flex-1 bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border-2 border-blue-100 relative overflow-hidden">
+<svg id="mainCanvas" class="w-full h-full" viewBox="0 0 800 600" style="background: radial-gradient(circle at 50% 50%, rgba(232, 244, 248, 0.3), transparent);">
+<defs>
+<filter id="glow">
+<feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+<feMerge>
+<feMergeNode in="coloredBlur"/>
+<feMergeNode in="SourceGraphic"/>
+</feMerge>
+</filter>
+<radialGradient id="protractorGradient">
+<stop offset="0%" style="stop-color:#E8F4F8;stop-opacity:0.95"/>
+<stop offset="100%" style="stop-color:#B0BEC5;stop-opacity:0.85"/>
+</radialGradient>
+</defs>
+
+<g id="angleGroup">
+<line id="angleLine1" x1="300" y1="400" x2="150" y2="400" stroke="#0277BD" stroke-width="4" stroke-linecap="round"/>
+<line id="angleLine2" x1="300" y1="400" x2="420" y2="250" stroke="#0277BD" stroke-width="4" stroke-linecap="round"/>
+<circle cx="300" cy="400" r="6" fill="#0277BD"/>
+<text x="300" y="440" text-anchor="middle" class="text-2xl font-bold fill-slate-700">Vertex of the angle</text>
+</g>
+
+<g id="protractorGroup" opacity="0" transform="translate(300, 400)">
+<circle r="150" fill="url(#protractorGradient)" stroke="#0277BD" stroke-width="2" opacity="0.7"/>
+<path d="M -150 0 A 150 150 0 0 1 150 0 Z" fill="url(#protractorGradient)" stroke="#0277BD" stroke-width="3" opacity="0.85"/>
+<line x1="-150" y1="0" x2="150" y2="0" stroke="#0277BD" stroke-width="2"/>
+<line x1="0" y1="0" x2="0" y2="-150" stroke="#B0BEC5" stroke-width="1" stroke-dasharray="3,3"/>
+<circle r="8" fill="#FF5252" filter="url(#glow)"/>
+<text y="-165" text-anchor="middle" class="text-lg font-bold fill-blue-600">90°</text>
+<text x="-165" text-anchor="end" class="text-lg font-bold fill-blue-600">180°</text>
+<text x="165" text-anchor="start" class="text-lg font-bold fill-blue-600">0°</text>
+</g>
+
+<g id="scaleMarks" opacity="0">
+</g>
+
+<path id="sweepArc" d="" fill="none" stroke="#0277BD" stroke-width="4" opacity="0"/>
+
+<text id="resultText" x="650" y="100" text-anchor="middle" class="text-5xl font-bold fill-blue-600" opacity="0"></text>
+</svg>
+
+<div id="hintBubble" class="absolute top-8 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-2xl shadow-2xl text-xl font-bold opacity-0 pointer-events-none">
+<i class="fas fa-lightbulb mr-2"></i><span id="hintText">Ready to start measuring</span>
+</div>
+</div>
+
+<div class="w-96 flex flex-col gap-4">
+<div class="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border-2 border-blue-100 p-6">
+<h2 class="text-2xl font-bold text-blue-700 mb-6 flex items-center gap-2">
+<i class="fas fa-list-ol"></i> Measurement steps
+</h2>
+<div class="space-y-3">
+<div id="step1" class="step-card bg-gradient-to-r from-blue-500 to-blue-600 text-white p-5 rounded-xl shadow-lg transform scale-105">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-white text-blue-600 flex items-center justify-center font-bold text-xl flex-shrink-0">1</div>
+<div>
+<div class="font-bold text-lg mb-1">Place the protractor</div>
+<div class="text-sm opacity-90">Align the center point with the vertex</div>
+</div>
+</div>
+</div>
+<div id="step2" class="step-card bg-slate-100 text-slate-600 p-5 rounded-xl shadow-md">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center font-bold text-xl flex-shrink-0">2</div>
+<div>
+<div class="font-bold text-lg mb-1">Align the zero mark</div>
+<div class="text-sm opacity-75">Make the 0° line overlap one ray of the angle</div>
+</div>
+</div>
+</div>
+<div id="step3" class="step-card bg-slate-100 text-slate-600 p-5 rounded-xl shadow-md">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center font-bold text-xl flex-shrink-0">3</div>
+<div>
+<div class="font-bold text-lg mb-1">Read the measure</div>
+<div class="text-sm opacity-75">Read the value where the other ray meets the scale</div>
+</div>
+</div>
+</div>
+<div id="step4" class="step-card bg-slate-100 text-slate-600 p-5 rounded-xl shadow-md">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center font-bold text-xl flex-shrink-0">4</div>
+<div>
+<div class="font-bold text-lg mb-1">Confirm the result</div>
+<div class="text-sm opacity-75">Complete the angle measurement</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-xl border-2 border-blue-200 p-6">
+<h3 class="text-xl font-bold text-blue-700 mb-4 flex items-center gap-2">
+<i class="fas fa-book-open"></i> Key points
+</h3>
+<div class="space-y-3 text-lg text-slate-700">
+<div class="flex items-start gap-3 bg-white/70 p-3 rounded-xl">
+<i class="fas fa-circle-dot text-blue-500 mt-1"></i>
+<div><span class="font-bold text-blue-600">Center point</span> must match the vertex of the angle</div>
+</div>
+<div class="flex items-start gap-3 bg-white/70 p-3 rounded-xl">
+<i class="fas fa-ruler-horizontal text-blue-500 mt-1"></i>
+<div><span class="font-bold text-blue-600">Zero line</span> should overlap one ray of the angle</div>
+</div>
+<div class="flex items-start gap-3 bg-white/70 p-3 rounded-xl">
+<i class="fas fa-eye text-blue-500 mt-1"></i>
+<div>Be sure to choose the <span class="font-bold text-blue-600">correct scale</span></div>
+</div>
+</div>
+</div>
+
+<button id="nextBtn" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white py-5 rounded-2xl font-bold text-2xl shadow-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl">
+<i class="fas fa-play mr-2"></i>Start demo
+</button>
+
+<button id="resetBtn" class="w-full bg-gradient-to-r from-slate-400 to-slate-500 hover:from-slate-500 hover:to-slate-600 text-white py-4 rounded-2xl font-bold text-xl shadow-lg transition-all duration-300 transform hover:scale-105 opacity-50 cursor-not-allowed" disabled>
+<i class="fas fa-redo mr-2"></i>Restart demo
+</button>
+</div>
+</div>
+</main>
+</div>
+
+<script>
+let currentStep = 0;
+const totalSteps = 4;
+const nextBtn = document.getElementById('nextBtn');
+const resetBtn = document.getElementById('resetBtn');
+const protractorGroup = document.getElementById('protractorGroup');
+const hintBubble = document.getElementById('hintBubble');
+const hintText = document.getElementById('hintText');
+const sweepArc = document.getElementById('sweepArc');
+const resultText = document.getElementById('resultText');
+const scaleMarks = document.getElementById('scaleMarks');
+
+for (let i = 0; i <= 180; i += 10) {
+  const angle = (180 - i) * Math.PI / 180;
+  const x1 = 150 * Math.cos(angle);
+  const y1 = -150 * Math.sin(angle);
+  const x2 = (i % 30 === 0 ? 135 : 140) * Math.cos(angle);
+  const y2 = -(i % 30 === 0 ? 135 : 140) * Math.sin(angle);
+  
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', x1);
+  line.setAttribute('y1', y1);
+  line.setAttribute('x2', x2);
+  line.setAttribute('y2', y2);
+  line.setAttribute('stroke', '#0277BD');
+  line.setAttribute('stroke-width', i % 30 === 0 ? '2' : '1');
+  scaleMarks.appendChild(line);
+  
+  if (i % 30 === 0 && i !== 0 && i !== 180) {
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const textX = 120 * Math.cos(angle);
+    const textY = -120 * Math.sin(angle);
+    text.setAttribute('x', textX);
+    text.setAttribute('y', textY);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('class', 'text-sm font-bold fill-blue-600');
+    text.textContent = i + '°';
+    scaleMarks.appendChild(text);
+  }
+}
+
+function updateStepUI(step) {
+  document.getElementById('currentStep').textContent = step;
+  for (let i = 1; i <= totalSteps; i++) {
+    const stepCard = document.getElementById(`step${i}`);
+    if (stepCard) {
+      if (i === step) {
+        stepCard.className = 'step-card bg-gradient-to-r from-blue-500 to-blue-600 text-white p-5 rounded-xl shadow-lg transform scale-105 transition-all duration-300';
+      } else if (i < step) {
+        stepCard.className = 'step-card bg-gradient-to-r from-emerald-400 to-emerald-500 text-white p-5 rounded-xl shadow-md transition-all duration-300';
+      } else {
+        stepCard.className = 'step-card bg-slate-100 text-slate-600 p-5 rounded-xl shadow-md transition-all duration-300';
+      }
+    }
+  }
+}
+
+function showHint(text) {
+  hintText.textContent = text;
+  anime({
+    targets: hintBubble,
+    opacity: [0, 1],
+    translateY: [-20, 0],
+    duration: 500,
+    easing: 'easeOutElastic(1, .8)'
+  });
+}
+
+function hideHint() {
+  anime({
+    targets: hintBubble,
+    opacity: 0,
+    translateY: -20,
+    duration: 300,
+    easing: 'easeInQuad'
+  });
+}
+
+function step1Animation() {
+  showHint('Place the protractor above the angle');
+  anime({
+    targets: protractorGroup,
+    opacity: [0, 1],
+    translateY: [-50, 0],
+    duration: 1000,
+    easing: 'easeOutElastic(1, .6)',
+    complete: () => {
+      setTimeout(() => {
+        showHint('Center point aligned with the vertex ✓');
+        anime({
+          targets: protractorGroup.querySelector('circle[r="8"]'),
+          scale: [1, 1.5, 1],
+          duration: 600,
+          easing: 'easeInOutQuad',
+          loop: 2
+        });
+        setTimeout(() => {
+          nextBtn.disabled = false;
+          nextBtn.innerHTML = '<i class="fas fa-arrow-right mr-2"></i>Next';
+        }, 1500);
+      }, 800);
+    }
+  });
+}
+
+function step2Animation() {
+  showHint('Rotate the protractor to align the zero mark');
+  anime({
+    targets: scaleMarks,
+    opacity: [0, 1],
+    duration: 800,
+    easing: 'easeOutQuad'
+  });
+  
+  anime({
+    targets: protractorGroup,
+    rotate: [0, 0],
+    duration: 1200,
+    easing: 'easeInOutQuad',
+    complete: () => {
+      const zeroLine = protractorGroup.querySelector('line[x2="150"]');
+      if (zeroLine) {
+        anime({
+          targets: zeroLine,
+          strokeWidth: [2, 5, 2],
+          duration: 600,
+          easing: 'easeInOutQuad',
+          loop: 2
+        });
+      }
+      setTimeout(() => {
+        showHint('Zero line overlaps one ray of the angle ✓');
+        setTimeout(() => {
+          nextBtn.disabled = false;
+        }, 1000);
+      }, 1300);
+    }
+  });
+}
+
+function step3Animation() {
+  showHint('Read the degree value for the other ray');
+  
+  const targetAngle = 55;
+  const startAngle = 180;
+  const arcPath = describeArc(0, 0, 130, startAngle, startAngle - targetAngle);
+  
+  sweepArc.setAttribute('opacity', '1');
+  sweepArc.setAttribute('d', arcPath);
+  sweepArc.setAttribute('stroke-dasharray', '1000');
+  sweepArc.setAttribute('stroke-dashoffset', '1000');
+  
+  anime({
+    targets: sweepArc,
+    strokeDashoffset: [1000, 0],
+    duration: 2000,
+    easing: 'easeInOutQuad',
+    update: (anim) => {
+      const progress = anim.progress / 100;
+      const currentAngle = Math.round(targetAngle * progress);
+      resultText.textContent = currentAngle + '°';
+    },
+    complete: () => {
+      anime({
+        targets: resultText,
+        opacity: [0, 1],
+        scale: [0.5, 1.2, 1],
+        duration: 800,
+        easing: 'easeOutElastic(1, .6)'
+      });
+      setTimeout(() => {
+        showHint('Done reading: this angle is 55° ✓');
+        setTimeout(() => {
+          nextBtn.disabled = false;
+        }, 1000);
+      }, 1000);
+    }
+  });
+}
+
+function step4Animation() {
+  showHint('Measurement complete! You now know how to use a protractor');
+  
+  anime({
+    targets: [protractorGroup, sweepArc, resultText],
+    scale: [1, 1.1, 1],
+    duration: 600,
+    easing: 'easeInOutQuad',
+    complete: () => {
+      resetBtn.disabled = false;
+      resetBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      resetBtn.classList.add('opacity-100');
+      nextBtn.disabled = true;
+      nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+  });
+}
+
+function describeArc(x, y, radius, startAngle, endAngle) {
+  const start = polarToCartesian(x, y, radius, endAngle);
+  const end = polarToCartesian(x, y, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return [
+    "M", start.x, start.y,
+    "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y
+  ].join(" ");
+}
+
+function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+  const angleInRadians = (angleInDegrees) * Math.PI / 180.0;
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians))
+  };
+}
+
+nextBtn.addEventListener('click', () => {
+  if (nextBtn.disabled) return;
+  
+  nextBtn.disabled = true;
+  currentStep++;
+  updateStepUI(currentStep);
+  
+  switch (currentStep) {
+    case 1:
+      step1Animation();
+      break;
+    case 2:
+      step2Animation();
+      break;
+    case 3:
+      step3Animation();
+      break;
+    case 4:
+      step4Animation();
+      break;
+  }
+});
+
+resetBtn.addEventListener('click', () => {
+  currentStep = 0;
+  updateStepUI(1);
+  
+  protractorGroup.setAttribute('opacity', '0');
+  scaleMarks.setAttribute('opacity', '0');
+  sweepArc.setAttribute('opacity', '0');
+  resultText.setAttribute('opacity', '0');
+  resultText.textContent = '';
+  
+  hideHint();
+  
+  nextBtn.disabled = false;
+  nextBtn.innerHTML = '<i class="fas fa-play mr-2"></i>Start demo';
+  nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+  
+  resetBtn.disabled = true;
+  resetBtn.classList.add('opacity-50', 'cursor-not-allowed');
+  resetBtn.classList.remove('opacity-100');
+  
+  anime.remove([protractorGroup, scaleMarks, sweepArc, resultText, hintBubble]);
+});
+
+updateStepUI(0);
+</script>
+</body>
+</html>

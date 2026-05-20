@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⏰ Interactive Clock Learning - Understanding Hour and Minute Hands</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      font-family: 'Arial', sans-serif;
+    }
+
+    .clock-container {
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
+        inset 0 0 20px rgba(0, 0, 0, 0.05);
+      position: relative;
+    }
+
+    .clock-face {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .clock-center {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: #333;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .hour-mark {
+      position: absolute;
+      width: 4px;
+      height: 15px;
+      background: #333;
+      left: 50%;
+      transform-origin: center 150px;
+      top: 10px;
+      margin-left: -2px;
+    }
+
+    .minute-mark {
+      position: absolute;
+      width: 2px;
+      height: 8px;
+      background: #999;
+      left: 50%;
+      transform-origin: center 150px;
+      top: 17px;
+      margin-left: -1px;
+    }
+
+    .hand {
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      transform-origin: bottom center;
+      border-radius: 10px 10px 0 0;
+      transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+      cursor: grab;
+    }
+
+    .hand:active {
+      cursor: grabbing;
+    }
+
+    .hour-hand {
+      width: 8px;
+      height: 100px;
+      background: linear-gradient(to top, #2563eb, #3b82f6);
+      margin-left: -4px;
+      z-index: 3;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+
+    .minute-hand {
+      width: 6px;
+      height: 140px;
+      background: linear-gradient(to top, #dc2626, #ef4444);
+      margin-left: -3px;
+      z-index: 4;
+      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
+    }
+
+    .second-hand {
+      width: 3px;
+      height: 150px;
+      background: linear-gradient(to top, #f59e0b, #fbbf24);
+      margin-left: -1.5px;
+      z-index: 5;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+    }
+
+    .number {
+      position: absolute;
+      font-size: 28px;
+      font-weight: bold;
+      color: #333;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn {
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .time-display {
+      font-family: 'Courier New', monospace;
+      font-size: 48px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .info-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    .pulse-animation {
+      animation: pulse 2s infinite;
+    }
+  </style>
+</head>
+
+<body class="flex items-center justify-center p-4">
+  <div class="max-w-6xl w-full">
+    <!-- Title Section -->
+    <div class="text-center mb-8">
+      <h1 class="text-5xl font-bold text-white mb-3">⏰ Interactive Clock Learning</h1>
+      <p class="text-xl text-white opacity-90">Drag the hands to learn how hour and minute hands move</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <!-- Left Info Card -->
+      <div class="info-card">
+        <h2 class="text-2xl font-bold mb-4 text-purple-600">📚 Key Concepts</h2>
+        <div class="space-y-3 text-gray-700">
+          <div class="flex items-start gap-2">
+            <span class="text-2xl">🔵</span>
+            <div>
+              <p class="font-semibold">Hour Hand (Short Hand)</p>
+              <p class="text-sm">Completes one full circle in 12 hours, moves 30° per hour</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-2xl">🔴</span>
+            <div>
+              <p class="font-semibold">Minute Hand (Long Hand)</p>
+              <p class="text-sm">Completes one full circle in 60 minutes, moves 6° per minute</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-2xl">🟡</span>
+            <div>
+              <p class="font-semibold">Second Hand (Thin Hand)</p>
+              <p class="text-sm">Completes one full circle in 60 seconds, moves 6° per second</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Clock -->
+      <div class="flex flex-col items-center gap-6">
+        <div class="clock-container" style="width: 320px; height: 320px;">
+          <div class="clock-face" id="clockFace">
+            <!-- Clock tick marks and numbers will be generated via JS -->
+            <div class="hand hour-hand" id="hourHand"></div>
+            <div class="hand minute-hand" id="minuteHand"></div>
+            <div class="hand second-hand" id="secondHand"></div>
+            <div class="clock-center"></div>
+          </div>
+        </div>
+
+        <div class="time-display" id="timeDisplay">12:00:00</div>
+      </div>
+
+      <!-- Right Control Panel -->
+      <div class="info-card">
+        <h2 class="text-2xl font-bold mb-4 text-purple-600">🎮 Control Panel</h2>
+
+        <div class="space-y-4">
+          <button onclick="setCurrentTime()"
+            class="btn w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg font-semibold">
+            📍 Show Current Time
+          </button>
+
+          <button onclick="toggleAutoRun()"
+            class="btn w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-lg font-semibold"
+            id="autoRunBtn">
+            ▶️ Auto Run
+          </button>
+
+          <button onclick="setTime(3, 0, 0)"
+            class="btn w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold">
+            🕒 Set to 3:00
+          </button>
+
+          <button onclick="setTime(6, 30, 0)"
+            class="btn w-full bg-gradient-to-r from-pink-500 to-pink-600 text-white py-3 px-4 rounded-lg font-semibold">
+            🕡 Set to 6:30
+          </button>
+
+          <button onclick="setTime(9, 15, 0)"
+            class="btn w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-semibold">
+            🕘 Set to 9:15
+          </button>
+
+          <button onclick="resetClock()"
+            class="btn w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white py-3 px-4 rounded-lg font-semibold">
+            🔄 Reset to 12:00
+          </button>
+        </div>
+
+        <div class="mt-6 p-4 bg-purple-50 rounded-lg">
+          <p class="text-sm text-gray-600 text-center">
+            💡 Tip: You can drag the hands directly to adjust the time!
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let hours = 12;
+    let minutes = 0;
+    let seconds = 0;
+    let autoRunning = false;
+    let autoRunInterval = null;
+    let isDragging = false;
+    let currentDragHand = null;
+
+    // Initialize Clock
+    function initClock() {
+      const clockFace = document.getElementById('clockFace');
+
+      // Generate hour tick marks and numbers
+      for (let i = 1; i <= 12; i++) {
+        const angle = (i * 30 - 90) * Math.PI / 180;
+        const radius = 130;
+        const x = 150 + radius * Math.cos(angle);
+        const y = 150 + radius * Math.sin(angle);
+
+        const number = document.createElement('div');
+        number.className = 'number';
+        number.textContent = i;
+        number.style.left = (x - 20) + 'px';
+        number.style.top = (y - 20) + 'px';
+        clockFace.appendChild(number);
+      }
+
+      // Generate 60 tick marks
+      for (let i = 0; i < 60; i++) {
+        const mark = document.createElement('div');
+        if (i % 5 === 0) {
+          mark.className = 'hour-mark';
+        } else {
+          mark.className = 'minute-mark';
+        }
+        mark.style.transform = `rotate(${i * 6}deg)`;
+        clockFace.insertBefore(mark, clockFace.firstChild);
+      }
+
+      setupDragHandlers();
+    }
+
+    // Setup Drag Functionality
+    function setupDragHandlers() {
+      const hourHand = document.getElementById('hourHand');
+      const minuteHand = document.getElementById('minuteHand');
+      const secondHand = document.getElementById('secondHand');
+
+      function startDrag(hand, e) {
+        isDragging = true;
+        currentDragHand = hand;
+        e.preventDefault();
+      }
+
+      function drag(e) {
+        if (!isDragging || !currentDragHand) return;
+
+        const clock = document.getElementById('clockFace');
+        const rect = clock.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+        const angle = Math.atan2(clientY - centerY, clientX - centerX);
+        let degrees = angle * 180 / Math.PI + 90;
+        if (degrees < 0) degrees += 360;
+
+        if (currentDragHand === hourHand) {
+          hours = Math.round((degrees / 30) % 12);
+          if (hours === 0) hours = 12;
+          minutes = Math.round(((degrees % 30) / 30) * 60);
+        } else if (currentDragHand === minuteHand) {
+          minutes = Math.round((degrees / 6) % 60);
+        } else if (currentDragHand === secondHand) {
+          seconds = Math.round((degrees / 6) % 60);
+        }
+
+        updateClock();
+      }
+
+      function endDrag() {
+        isDragging = false;
+        currentDragHand = null;
+      }
+
+      [hourHand, minuteHand, secondHand].forEach(hand => {
+        hand.addEventListener('mousedown', (e) => startDrag(hand, e));
+        hand.addEventListener('touchstart', (e) => startDrag(hand, e));
+      });
+
+      document.addEventListener('mousemove', drag);
+      document.addEventListener('touchmove', drag);
+      document.addEventListener('mouseup', endDrag);
+      document.addEventListener('touchend', endDrag);
+    }
+
+    // Update Clock Display
+    function updateClock() {
+      const hourHand = document.getElementById('hourHand');
+      const minuteHand = document.getElementById('minuteHand');
+      const secondHand = document.getElementById('secondHand');
+      const timeDisplay = document.getElementById('timeDisplay');
+
+      const hourAngle = (hours % 12) * 30 + minutes * 0.5 + seconds * (0.5 / 60);
+      const minuteAngle = minutes * 6 + seconds * 0.1;
+      const secondAngle = seconds * 6;
+
+      hourHand.style.transform = `rotate(${hourAngle}deg)`;
+      minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
+      secondHand.style.transform = `rotate(${secondAngle}deg)`;
+
+      const h = hours.toString().padStart(2, '0');
+      const m = minutes.toString().padStart(2, '0');
+      const s = seconds.toString().padStart(2, '0');
+      timeDisplay.textContent = `${h}:${m}:${s}`;
+    }
+
+    // Set Current Real Time
+    function setCurrentTime() {
+      const now = new Date();
+      hours = now.getHours();
+      minutes = now.getMinutes();
+      seconds = now.getSeconds();
+      updateClock();
+
+      anime({
+        targets: '.time-display',
+        scale: [1, 1.1, 1],
+        duration: 500,
+        easing: 'easeInOutQuad'
+      });
+    }
+
+    // Set Specified Time
+    function setTime(h, m, s) {
+      hours = h;
+      minutes = m;
+      seconds = s;
+      updateClock();
+
+      anime({
+        targets: '.clock-container',
+        scale: [1, 1.05, 1],
+        duration: 400,
+        easing: 'easeInOutQuad'
+      });
+    }
+
+    // Reset Clock
+    function resetClock() {
+      hours = 12;
+      minutes = 0;
+      seconds = 0;
+      updateClock();
+
+      anime({
+        targets: ['.hour-hand', '.minute-hand', '.second-hand'],
+        rotate: [360, 0],
+        duration: 1000,
+        easing: 'easeInOutQuad'
+      });
+    }
+
+    // Auto Run
+    function toggleAutoRun() {
+      autoRunning = !autoRunning;
+      const btn = document.getElementById('autoRunBtn');
+
+      if (autoRunning) {
+        btn.innerHTML = '⏸️ Pause';
+        btn.className = btn.className.replace('green', 'red');
+        autoRunInterval = setInterval(() => {
+          seconds++;
+          if (seconds >= 60) {
+            seconds = 0;
+            minutes++;
+          }
+          if (minutes >= 60) {
+            minutes = 0;
+            hours++;
+          }
+          if (hours > 12) {
+            hours = 1;
+          }
+          updateClock();
+        }, 1000);
+      } else {
+        btn.innerHTML = '▶️ Auto Run';
+        btn.className = btn.className.replace('red', 'green');
+        clearInterval(autoRunInterval);
+      }
+    }
+
+    // Initialize
+    initClock();
+    updateClock();
+
+    // Page Load Animation
+    anime({
+      targets: '.clock-container',
+      scale: [0, 1],
+      opacity: [0, 1],
+      duration: 800,
+      easing: 'easeOutElastic(1, .6)'
+    });
+
+    anime({
+      targets: '.info-card',
+      translateY: [50, 0],
+      opacity: [0, 1],
+      duration: 800,
+      delay: anime.stagger(200),
+      easing: 'easeOutQuad'
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraction Multiplication Visualization Lab 🔢</title>
+    
+    <!-- Tailwind CSS (styles) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Anime.js (animations) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    
+    <style>
+        /* Additional custom styles */
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background-color: #f0f9ff;
+            /* Cute background pattern */
+            background-image: radial-gradient(#bae6fd 2px, transparent 2px);
+            background-size: 30px 30px;
+        }
+
+        .canvas-container {
+            aspect-ratio: 4/3;
+            max-height: 400px;
+            transition: all 0.5s ease;
+        }
+
+        /* Base grid cell styles */
+        .grid-cell {
+            position: relative;
+            border: 1px solid transparent; /* no border initially */
+            transition: background-color 0.3s ease;
+        }
+
+        /* Step indicator animation */
+        .step-dot {
+            transition: all 0.3s ease;
+        }
+        .step-dot.active {
+            transform: scale(1.2);
+            background-color: #3b82f6; /* blue-500 */
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        /* Button press effect */
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main app card -->
+    <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col border-4 border-white">
+        
+        <!-- Header -->
+        <div class="bg-blue-500 p-4 text-white text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')]"></div>
+            <h1 class="text-2xl font-bold tracking-wider">🍰 Fraction Multiplication Visualizer</h1>
+            <p class="text-blue-100 text-sm mt-1">See the math: understand the expression through shapes</p>
+        </div>
+
+        <!-- Step indicator -->
+        <div class="flex justify-between px-8 py-4 bg-gray-50 border-b border-gray-100">
+            <div id="step-indicator-1" class="step-dot w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-400 font-bold text-sm active">1</div>
+            <div class="flex-1 border-t-2 border-gray-200 self-center mx-2"></div>
+            <div id="step-indicator-2" class="step-dot w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-400 font-bold text-sm">2</div>
+            <div class="flex-1 border-t-2 border-gray-200 self-center mx-2"></div>
+            <div id="step-indicator-3" class="step-dot w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-400 font-bold text-sm">3</div>
+            <div class="flex-1 border-t-2 border-gray-200 self-center mx-2"></div>
+            <div id="step-indicator-4" class="step-dot w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-400 font-bold text-sm">4</div>
+        </div>
+
+        <!-- Main content -->
+        <div class="flex-1 p-6 flex flex-col items-center">
+            
+            <!-- Step 1: Inputs -->
+            <div id="step-content-1" class="w-full space-y-6 text-center">
+                <p class="text-gray-600 text-lg">Enter the two fractions you want to multiply:</p>
+                
+                <div class="flex items-center justify-center space-x-4 text-2xl font-bold text-gray-700">
+                    <!-- Fraction 1 -->
+                    <div class="flex flex-col items-center w-20">
+                        <input type="number" id="n1" value="1" min="1" max="9" class="w-full text-center border-2 border-blue-200 rounded-lg p-2 focus:border-blue-500 outline-none bg-blue-50 transition-colors">
+                        <div class="w-full h-1 bg-gray-800 my-2 rounded"></div>
+                        <input type="number" id="d1" value="2" min="1" max="10" class="w-full text-center border-2 border-blue-200 rounded-lg p-2 focus:border-blue-500 outline-none bg-blue-50 transition-colors">
+                    </div>
+                    
+                    <span class="text-4xl text-gray-400">×</span>
+                    
+                    <!-- Fraction 2 -->
+                    <div class="flex flex-col items-center w-20">
+                        <input type="number" id="n2" value="1" min="1" max="9" class="w-full text-center border-2 border-yellow-200 rounded-lg p-2 focus:border-yellow-500 outline-none bg-yellow-50 transition-colors">
+                        <div class="w-full h-1 bg-gray-800 my-2 rounded"></div>
+                        <input type="number" id="d2" value="5" min="1" max="10" class="w-full text-center border-2 border-yellow-200 rounded-lg p-2 focus:border-yellow-500 outline-none bg-yellow-50 transition-colors">
+                    </div>
+                </div>
+
+                <div class="text-sm text-gray-400 mt-2">💡 Tip: keep denominators ≤ 10 so the picture stays clear</div>
+            </div>
+
+            <!-- Visualization area (steps 2-4) -->
+            <div id="visualization-area" class="hidden w-full flex flex-col items-center">
+                
+                <!-- Dynamic instructions -->
+                <div id="instruction-text" class="text-lg font-medium text-gray-700 mb-4 min-h-[3rem] text-center flex items-center justify-center bg-blue-50 w-full rounded-lg px-4 py-2 border border-blue-100">
+                    Getting ready...
+                </div>
+
+                <!-- Canvas -->
+                <div class="canvas-container w-full bg-white border-4 border-gray-800 rounded-lg shadow-inner relative overflow-hidden">
+                    <!-- Grid container -->
+                    <div id="grid-container" class="w-full h-full grid">
+                        <!-- Cells are generated by JS -->
+                    </div>
+                    
+                    <!-- Helper labels (absolute positioning) -->
+                    <div id="label-top" class="absolute top-0 left-0 w-full -mt-8 text-center text-blue-600 font-bold opacity-0"></div>
+                    <div id="label-left" class="absolute top-0 left-0 h-full -ml-8 flex items-center text-yellow-600 font-bold opacity-0 transform -rotate-90 origin-center"></div>
+                </div>
+
+                <!-- Result equation -->
+                <div id="result-equation" class="mt-6 text-3xl font-bold text-gray-800 opacity-0 transform scale-90">
+                    <!-- Generated dynamically -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer controls -->
+        <div class="p-6 border-t border-gray-100 flex justify-between items-center bg-gray-50">
+            <button id="btn-reset" onclick="resetApp()" class="text-gray-400 hover:text-gray-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors">
+                🔄 Reset
+            </button>
+            
+            <div class="space-x-3">
+                <button id="btn-prev" onclick="prevStep()" class="hidden px-6 py-3 bg-gray-200 text-gray-600 rounded-full font-bold shadow-sm hover:bg-gray-300 transition-colors">
+                    Previous
+                </button>
+                <button id="btn-next" onclick="nextStep()" class="px-8 py-3 bg-blue-500 text-white rounded-full font-bold shadow-md hover:bg-blue-600 hover:shadow-lg transition-all flex items-center">
+                    Start <span class="ml-2">👉</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Global state
+        let currentStep = 1;
+        let n1, d1, n2, d2;
+        
+        // DOM elements
+        const btnNext = document.getElementById('btn-next');
+        const btnPrev = document.getElementById('btn-prev');
+        const visualizationArea = document.getElementById('visualization-area');
+        const stepContent1 = document.getElementById('step-content-1');
+        const gridContainer = document.getElementById('grid-container');
+        const instructionText = document.getElementById('instruction-text');
+        const resultEquation = document.getElementById('result-equation');
+
+        // Init
+        function init() {
+            updateUI();
+        }
+
+        // Validate inputs
+        function validateInput() {
+            const i_n1 = parseInt(document.getElementById('n1').value);
+            const i_d1 = parseInt(document.getElementById('d1').value);
+            const i_n2 = parseInt(document.getElementById('n2').value);
+            const i_d2 = parseInt(document.getElementById('d2').value);
+
+            if (i_d1 <= 0 || i_d2 <= 0) {
+                alert('The denominator cannot be 0 or negative.');
+                return false;
+            }
+            if (i_n1 > i_d1 || i_n2 > i_d2) {
+                alert('For a clearer demo, please use proper fractions (numerator < denominator).');
+                return false;
+            }
+            
+            n1 = i_n1; d1 = i_d1;
+            n2 = i_n2; d2 = i_d2;
+            return true;
+        }
+
+    // Next step
+        function nextStep() {
+            if (currentStep === 1) {
+                if (!validateInput()) return;
+                prepareGrid();
+            }
+            if (currentStep < 4) {
+                currentStep++;
+                updateUI();
+                executeStepAnimation();
+            }
+        }
+
+    // Previous step
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateUI();
+                executeStepAnimation(true); // true: reverse operation
+            }
+        }
+
+        // Reset
+        function resetApp() {
+            currentStep = 1;
+            // Clear grid/equation
+            gridContainer.innerHTML = '';
+            resultEquation.innerHTML = '';
+            resultEquation.style.opacity = '0';
+            updateUI();
+        }
+
+        // Update UI state (buttons, progress, views)
+        function updateUI() {
+            // Progress dots
+            for (let i = 1; i <= 4; i++) {
+                const dot = document.getElementById(`step-indicator-${i}`);
+                if (i === currentStep) {
+                    dot.classList.add('active', 'bg-blue-500', 'text-white', 'border-blue-500');
+                    dot.classList.remove('text-gray-400', 'border-gray-300');
+                } else if (i < currentStep) {
+                    dot.classList.add('bg-blue-200', 'text-blue-600', 'border-blue-200');
+                    dot.classList.remove('active', 'bg-blue-500', 'text-white', 'text-gray-400', 'border-gray-300');
+                } else {
+                    dot.classList.remove('active', 'bg-blue-500', 'text-white', 'bg-blue-200', 'text-blue-600', 'border-blue-200', 'border-blue-500');
+                    dot.classList.add('text-gray-400', 'border-gray-300');
+                }
+            }
+
+            // Toggle content
+            if (currentStep === 1) {
+                stepContent1.classList.remove('hidden');
+                visualizationArea.classList.add('hidden');
+                btnPrev.classList.add('hidden');
+                btnNext.innerHTML = 'Start 👉';
+            } else {
+                stepContent1.classList.add('hidden');
+                visualizationArea.classList.remove('hidden');
+                btnPrev.classList.remove('hidden');
+                
+                if (currentStep === 4) {
+                    btnNext.classList.add('hidden'); // hide on last step
+                } else {
+                    btnNext.classList.remove('hidden');
+                    btnNext.innerHTML = 'Next 👇';
+                }
+            }
+        }
+
+        // Build grid DOM
+        function prepareGrid() {
+            gridContainer.innerHTML = '';
+            // CSS Grid settings
+            gridContainer.style.gridTemplateColumns = `repeat(${d1}, 1fr)`;
+            gridContainer.style.gridTemplateRows = `repeat(${d2}, 1fr)`;
+
+            // Generate cells
+            const totalCells = d1 * d2;
+            for (let i = 0; i < totalCells; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('grid-cell');
+                
+                // Compute column and row (0-indexed)
+                const col = i % d1;
+                const row = Math.floor(i / d1);
+                
+                cell.dataset.col = col;
+                cell.dataset.row = row;
+                
+                gridContainer.appendChild(cell);
+            }
+        }
+
+        // Run animation/logic for the current step
+        function executeStepAnimation(isReverse = false) {
+            // Get all cells
+            const cells = document.querySelectorAll('.grid-cell');
+
+            if (currentStep === 2) {
+                // Step 2: vertical splits for the first fraction
+                instructionText.innerHTML = `First, split the rectangle into <span class="text-blue-600 font-bold">${d1}</span> equal parts and shade <span class="text-blue-600 font-bold">${n1}</span> of them.<br>This represents <span class="text-blue-600 font-bold text-xl">${n1}/${d1}</span>`;
+                
+                anime({
+                    targets: '.grid-cell',
+                    borderRightWidth: ['0px', '2px'], // show vertical lines
+                    borderBottomWidth: '0px', // hide horizontal lines
+                    borderColor: '#e5e7eb', // gray-200
+                    duration: 500,
+                    easing: 'easeInOutQuad'
+                });
+
+                // Color animation
+                cells.forEach(cell => {
+                    const col = parseInt(cell.dataset.col);
+                    if (col < n1) {
+                        anime({
+                            targets: cell,
+                            backgroundColor: '#bfdbfe', // blue-200
+                            duration: 800,
+                            delay: anime.stagger(50, {grid: [d1, d2], from: 'first'})
+                        });
+                    } else {
+                        anime({
+                            targets: cell,
+                            backgroundColor: '#ffffff',
+                            duration: 500
+                        });
+                    }
+                });
+                
+                // Hide result
+                anime({targets: '#result-equation', opacity: 0, scale: 0.9});
+
+            } else if (currentStep === 3) {
+                // Step 3: horizontal splits for the second fraction
+                instructionText.innerHTML = `Next, based on the shaded area, split it into <span class="text-yellow-600 font-bold">${d2}</span> equal parts and take <span class="text-yellow-600 font-bold">${n2}</span> of them.<br>That means slicing the <b>entire rectangle</b> horizontally.`;
+
+                // Show horizontal lines
+                anime({
+                    targets: '.grid-cell',
+                    borderBottomWidth: ['0px', '2px'],
+                    borderColor: '#9ca3af', // gray-400 (slightly darker)
+                    duration: 800,
+                    easing: 'easeOutQuad'
+                });
+
+                // Overlay color animation (core logic)
+                cells.forEach(cell => {
+                    const col = parseInt(cell.dataset.col);
+                    const row = parseInt(cell.dataset.row);
+
+                    // If row < n2, we add a second (yellow) layer.
+                    // Overlap (col < n1 AND row < n2) is highlighted in green.
+                    
+                    if (row < n2) {
+                        if (col < n1) {
+                            // Overlap region: green
+                            anime({
+                                targets: cell,
+                                backgroundColor: '#86efac', // green-300 (Blue + Yellow ish)
+                                scale: [1, 1.05, 1],
+                                duration: 800,
+                                delay: 300 + row * 100
+                            });
+                        } else {
+                            // Second fraction only (non-overlap): pale yellow
+                            anime({
+                                targets: cell,
+                                backgroundColor: '#fef08a', // yellow-200
+                                opacity: 0.5, // semi-transparent to emphasize overlap
+                                duration: 800,
+                                delay: 300 + row * 100
+                            });
+                        }
+                    } else {
+                        // Not in selected rows
+                        if (col >= n1) {
+                            anime({
+                                targets: cell,
+                                backgroundColor: '#ffffff',
+                                duration: 500
+                            });
+                        } else {
+                            // Column-only (blue): keep blue
+                             anime({
+                                targets: cell,
+                                backgroundColor: '#bfdbfe',
+                                duration: 500
+                            });
+                        }
+                    }
+                });
+
+                // Hide result
+                anime({targets: '#result-equation', opacity: 0, scale: 0.9});
+
+            } else if (currentStep === 4) {
+                // Step 4: show the result
+                const total = d1 * d2;
+                const result = n1 * n2;
+                
+                instructionText.innerHTML = `Look! The green overlap is the answer.<br>The whole rectangle is split into <span class="font-bold">${total}</span> parts, and the green overlap covers <span class="font-bold text-green-600">${result}</span> parts.`;
+
+                // Fade non-result cells
+                cells.forEach(cell => {
+                    const col = parseInt(cell.dataset.col);
+                    const row = parseInt(cell.dataset.row);
+                    
+                    if (col < n1 && row < n2) {
+                        // Result area: highlight
+                        anime({
+                            targets: cell,
+                            backgroundColor: '#4ade80', // green-400 vivid
+                            borderColor: '#166534',
+                            borderWidth: '2px',
+                            scale: 1,
+                            zIndex: 10,
+                            duration: 500
+                        });
+                        // Optional marker
+                        cell.innerHTML = `<div class="w-full h-full flex items-center justify-center text-green-800 font-bold opacity-0 animate-fade-in">✓</div>`;
+                        anime({targets: cell.querySelector('div'), opacity: 1, delay: 500});
+
+                    } else {
+                        // Non-result area: fade
+                        anime({
+                            targets: cell,
+                            opacity: 0.3,
+                            scale: 0.95,
+                            duration: 800
+                        });
+                        cell.innerHTML = '';
+                    }
+                });
+
+                // Show equation
+                resultEquation.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <div class="flex flex-col items-center">
+                            <span>${n1}</span>
+                            <span class="w-full h-px bg-current"></span>
+                            <span>${d1}</span>
+                        </div>
+                        <span>×</span>
+                        <div class="flex flex-col items-center">
+                            <span>${n2}</span>
+                            <span class="w-full h-px bg-current"></span>
+                            <span>${d2}</span>
+                        </div>
+                        <span>=</span>
+                        <div class="flex flex-col items-center text-green-600 scale-125 transform origin-center ml-2">
+                            <span>${result}</span>
+                            <span class="w-full h-0.5 bg-current"></span>
+                            <span>${total}</span>
+                        </div>
+                    </div>
+                `;
+                
+                anime({
+                    targets: '#result-equation',
+                    opacity: 1,
+                    scale: 1,
+                    translateY: [20, 0],
+                    delay: 500,
+                    duration: 800
+                });
+            }
+        }
+
+    // Run
+        init();
+
+    </script>
+</body>
+</html>

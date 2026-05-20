@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fun Clock Learning ⏰</title>
+
+  <!-- External Libraries -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <!-- Icon Library -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Nunito:wght@700&display=swap');
+
+    body {
+      font-family: 'Nunito', 'Segoe UI', sans-serif;
+      background-color: #F0F9FF;
+      /* Prevent double-tap zoom and overscroll on touch devices */
+      touch-action: manipulation;
+    }
+
+    h1,
+    h2,
+    .fun-font {
+      font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
+    }
+
+    /* Clock Styles */
+    .clock-face {
+      fill: white;
+      stroke: #3B82F6;
+      stroke-width: 8;
+      filter: drop-shadow(0 10px 15px rgba(59, 130, 246, 0.2));
+    }
+
+    .hand {
+      transform-origin: 150px 150px;
+      stroke-linecap: round;
+      transition: transform 0.1s cubic-bezier(0.4, 2.08, 0.55, 0.44);
+      /* Elastic effect */
+    }
+
+    .hand-hour {
+      stroke: #EC4899;
+      /* Pink-500 */
+      stroke-width: 12;
+    }
+
+    .hand-minute {
+      stroke: #6366F1;
+      /* Indigo-500 */
+      stroke-width: 8;
+    }
+
+    .center-pin {
+      fill: #1E293B;
+    }
+
+    .tick-mark {
+      stroke: #94A3B8;
+      stroke-width: 2;
+    }
+
+    .tick-mark-major {
+      stroke: #334155;
+      stroke-width: 4;
+    }
+
+    .clock-number {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 24px;
+      fill: #475569;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    /* Custom Slider Styles */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 28px;
+      width: 28px;
+      border-radius: 50%;
+      background: #3B82F6;
+      cursor: pointer;
+      margin-top: -12px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      border: 3px solid white;
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: #BFDBFE;
+      border-radius: 3px;
+    }
+
+    /* Animation Classes */
+    .shake {
+      animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+    }
+
+    @keyframes shake {
+
+      10%,
+      90% {
+        transform: translate3d(-1px, 0, 0);
+      }
+
+      20%,
+      80% {
+        transform: translate3d(2px, 0, 0);
+      }
+
+      30%,
+      50%,
+      70% {
+        transform: translate3d(-4px, 0, 0);
+      }
+
+      40%,
+      60% {
+        transform: translate3d(4px, 0, 0);
+      }
+    }
+
+    .mode-active {
+      background-color: #3B82F6;
+      color: white;
+      border-color: #3B82F6;
+    }
+
+    .mode-inactive {
+      background-color: white;
+      color: #64748B;
+      border-color: #E2E8F0;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center py-6 px-4">
+
+  <!-- Title Section -->
+  <header class="text-center mb-6">
+    <h1 class="text-4xl md:text-5xl text-blue-600 mb-2 drop-shadow-sm">Learn the Clock <span class="text-4xl">🕰️</span>
+    </h1>
+    <p class="text-slate-500 fun-font text-lg">Observe the hour and minute hands, learn to tell time!</p>
+  </header>
+
+  <main class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+    <!-- Left: Clock Display Area -->
+    <div class="bg-white rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center relative overflow-hidden">
+      <!-- Mode Toggle Buttons -->
+      <div class="absolute top-4 left-4 right-4 flex justify-center gap-2 z-10">
+        <button id="btnModeExplore" onclick="setMode('explore')"
+          class="mode-active flex-1 py-2 rounded-xl font-bold transition-all shadow-sm border-2">
+          🔍 Explore Mode
+        </button>
+        <button id="btnModeQuiz" onclick="setMode('quiz')"
+          class="mode-inactive flex-1 py-2 rounded-xl font-bold transition-all shadow-sm border-2">
+          🎓 Quiz Mode
+        </button>
+      </div>
+
+      <div class="mt-12 mb-4 relative">
+        <svg id="clockSvg" width="300" height="300" viewBox="0 0 300 300">
+          <!-- Clock Face -->
+          <circle cx="150" cy="150" r="140" class="clock-face" />
+
+          <!-- Tick marks and numbers will be dynamically generated via JS -->
+          <g id="ticksGroup"></g>
+          <g id="numbersGroup"></g>
+
+          <!-- Hands -->
+          <!-- Minute Hand (longer) -->
+          <line id="minuteHand" x1="150" y1="150" x2="150" y2="40" class="hand hand-minute" />
+          <!-- Hour Hand (shorter) -->
+          <line id="hourHand" x1="150" y1="150" x2="150" y2="80" class="hand hand-hour" />
+
+          <!-- Center Pin -->
+          <circle cx="150" cy="150" r="8" class="center-pin" />
+          <circle cx="150" cy="150" r="3" fill="#6366F1" />
+        </svg>
+      </div>
+
+      <!-- Digital Time Display in Explore Mode -->
+      <div id="digitalDisplay"
+        class="bg-slate-100 px-6 py-2 rounded-xl text-4xl font-mono font-bold text-slate-700 shadow-inner border-2 border-slate-200">
+        12:00
+      </div>
+
+      <!-- Quiz Answer Area in Quiz Mode -->
+      <div id="quizControls" class="hidden w-full flex flex-col items-center gap-3">
+        <p class="text-lg text-slate-600 font-bold">What time is it now?</p>
+        <div class="flex items-center gap-2 justify-center">
+          <input type="number" id="quizHour" min="1" max="12"
+            class="w-20 text-center text-3xl font-bold p-2 rounded-lg border-2 border-pink-300 focus:border-pink-500 focus:outline-none text-pink-600 bg-pink-50"
+            placeholder="Hr">
+          <span class="text-2xl font-bold text-slate-400">:</span>
+          <input type="number" id="quizMinute" min="0" max="59"
+            class="w-20 text-center text-3xl font-bold p-2 rounded-lg border-2 border-indigo-300 focus:border-indigo-500 focus:outline-none text-indigo-600 bg-indigo-50"
+            placeholder="Min">
+        </div>
+        <div class="flex gap-2 w-full mt-2">
+          <button onclick="checkAnswer()"
+            class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg transform active:scale-95 transition-all text-lg">
+            ✅ Submit Answer
+          </button>
+          <button onclick="startQuiz()"
+            class="px-4 bg-yellow-400 hover:bg-yellow-500 text-white font-bold rounded-xl shadow-lg transform active:scale-95 transition-all">
+            🔄 New Question
+          </button>
+        </div>
+        <div id="feedbackMsg" class="h-8 font-bold text-lg"></div>
+      </div>
+    </div>
+
+    <!-- Right: Control Panel (only shown in Explore Mode) -->
+    <div id="exploreControls" class="bg-white rounded-3xl p-6 shadow-xl flex flex-col gap-6">
+
+      <!-- Info Card -->
+      <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+        <h3 class="font-bold text-blue-700 mb-1 flex items-center gap-2">
+          <i class="fas fa-lightbulb text-yellow-500"></i> Key Concepts
+        </h3>
+        <ul class="text-sm text-blue-800 space-y-1">
+          <li>🔴 <span class="font-bold text-pink-500">Hour Hand</span>: Short and thick, moves slowly, indicates
+            "hours".</li>
+          <li>🔵 <span class="font-bold text-indigo-500">Minute Hand</span>: Thin and long, moves faster, indicates
+            "minutes".</li>
+          <li>⚡ When the minute hand completes one full circle (60 min), the hour hand moves one large mark (1 hour).
+          </li>
+        </ul>
+      </div>
+
+      <!-- Time Slider -->
+      <div>
+        <label class="block text-slate-600 font-bold mb-2 flex justify-between">
+          <span>Drag the Timeline</span>
+          <span class="text-xs text-slate-400 font-normal">00:00 - 12:00</span>
+        </label>
+        <input type="range" id="timeSlider" min="0" max="719" value="720" class="w-full">
+      </div>
+
+      <!-- Quick Control Buttons -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <p class="text-xs font-bold text-pink-400 text-center uppercase tracking-wider">Hour Hand Control</p>
+          <div class="flex gap-2">
+            <button onclick="adjustTime(-60)"
+              class="flex-1 bg-pink-100 hover:bg-pink-200 text-pink-600 py-3 rounded-xl font-bold transition-colors">-1
+              Hr</button>
+            <button onclick="adjustTime(60)"
+              class="flex-1 bg-pink-100 hover:bg-pink-200 text-pink-600 py-3 rounded-xl font-bold transition-colors">+1
+              Hr</button>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <p class="text-xs font-bold text-indigo-400 text-center uppercase tracking-wider">Minute Hand Control</p>
+          <div class="flex gap-2">
+            <button onclick="adjustTime(-5)"
+              class="flex-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 py-3 rounded-xl font-bold transition-colors">-5
+              Min</button>
+            <button onclick="adjustTime(5)"
+              class="flex-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 py-3 rounded-xl font-bold transition-colors">+5
+              Min</button>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="setNow()"
+        class="w-full border-2 border-slate-200 hover:border-blue-400 hover:text-blue-500 text-slate-500 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
+        <i class="far fa-clock"></i> Current Real Time
+      </button>
+
+    </div>
+  </main>
+
+  <script>
+    // State Variables
+    let currentTotalMinutes = 720; // 0 - 719 (12-hour format)
+    let currentMode = 'explore';
+    let quizTargetMinutes = 0;
+
+    // DOM Elements
+    const hourHand = document.getElementById('hourHand');
+    const minuteHand = document.getElementById('minuteHand');
+    const ticksGroup = document.getElementById('ticksGroup');
+    const numbersGroup = document.getElementById('numbersGroup');
+    const digitalDisplay = document.getElementById('digitalDisplay');
+    const timeSlider = document.getElementById('timeSlider');
+    const exploreControls = document.getElementById('exploreControls');
+    const quizControls = document.getElementById('quizControls');
+    const feedbackMsg = document.getElementById('feedbackMsg');
+    const btnModeExplore = document.getElementById('btnModeExplore');
+    const btnModeQuiz = document.getElementById('btnModeQuiz');
+
+    // Initialize Page
+    function init() {
+      drawClockFace();
+      updateClockDisplay(720); // Default 12:00
+
+      // Listen to slider
+      timeSlider.addEventListener('input', (e) => {
+        currentTotalMinutes = parseInt(e.target.value);
+        updateClockDisplay(currentTotalMinutes);
+      });
+    }
+
+    // Draw Clock Face (tick marks and numbers)
+    function drawClockFace() {
+      const radius = 110; // Number radius
+      const tickRadius = 130; // Tick mark radius
+
+      for (let i = 0; i < 60; i++) {
+        const angle = (i * 6) * (Math.PI / 180); // Radians
+        const isMajor = i % 5 === 0;
+
+        // Draw tick marks
+        const x1 = 150 + Math.sin(angle) * tickRadius;
+        const y1 = 150 - Math.cos(angle) * tickRadius;
+        const x2 = 150 + Math.sin(angle) * (tickRadius - (isMajor ? 10 : 5));
+        const y2 = 150 - Math.cos(angle) * (tickRadius - (isMajor ? 10 : 5));
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", x1);
+        line.setAttribute("y1", y1);
+        line.setAttribute("x2", x2);
+        line.setAttribute("y2", y2);
+        line.setAttribute("class", isMajor ? "tick-mark-major" : "tick-mark");
+        ticksGroup.appendChild(line);
+
+        // Draw numbers (only 1-12)
+        if (isMajor) {
+          const num = i === 0 ? 12 : i / 5;
+          const numX = 150 + Math.sin(angle) * radius;
+          const numY = 150 - Math.cos(angle) * radius; // Fine-tune vertical centering
+
+          const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          text.setAttribute("x", numX);
+          text.setAttribute("y", numY + 1); // Fine-tune
+          text.setAttribute("class", "clock-number");
+          text.textContent = num;
+          numbersGroup.appendChild(text);
+        }
+      }
+    }
+
+    // Update Clock Display (core logic)
+    function updateClockDisplay(totalMinutes, animate = false) {
+      // Normalize
+      if (totalMinutes >= 720) totalMinutes = 720;
+      if (totalMinutes < 0) totalMinutes = 0;
+
+      // Calculate hours and minutes
+      // Note: 720 minutes = 12:00
+      let h = Math.floor(totalMinutes / 60);
+      let m = totalMinutes % 60;
+
+      // Display hour (0 should display as 12)
+      let displayH = h === 0 ? 12 : h;
+      if (h === 12) displayH = 12;
+
+      // Calculate angles
+      // Minute hand: 6 degrees per minute
+      const minuteDeg = m * 6;
+      // Hour hand: 30 degrees per hour + 0.5 degrees per minute
+      // totalMinutes is the total minutes, multiply by 0.5 to get the total angle relative to 12 o'clock
+      const hourDeg = totalMinutes * 0.5;
+
+      // Apply animation or set directly
+      if (animate) {
+        anime({
+          targets: '#minuteHand',
+          rotate: minuteDeg,
+          duration: 800,
+          easing: 'easeOutElastic(1, .8)'
+        });
+        anime({
+          targets: '#hourHand',
+          rotate: hourDeg,
+          duration: 800,
+          easing: 'easeOutElastic(1, .8)'
+        });
+      } else {
+        // Use JS to set transform to avoid CSS animation delay during dragging
+        minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+        hourHand.style.transform = `rotate(${hourDeg}deg)`;
+      }
+
+      // Update digital display
+      const formattedM = m.toString().padStart(2, '0');
+      digitalDisplay.textContent = `${displayH}:${formattedM}`;
+
+      // Sync slider (if not triggered by dragging)
+      if (document.activeElement !== timeSlider) {
+        timeSlider.value = totalMinutes;
+      }
+    }
+
+    // Button Time Adjustment
+    function adjustTime(delta) {
+      currentTotalMinutes += delta;
+
+      // Loop logic (12-hour format)
+      if (currentTotalMinutes >= 720) currentTotalMinutes -= 720;
+      if (currentTotalMinutes < 0) currentTotalMinutes += 720;
+
+      // Special handling: if 12:00 (720 or 0), for slider experience, we tend to maintain continuity
+      // But here we simply handle it as a loop
+
+      updateClockDisplay(currentTotalMinutes, true);
+    }
+
+    // Set to Current Real Time
+    function setNow() {
+      const now = new Date();
+      let h = now.getHours();
+      let m = now.getMinutes();
+
+      // Convert to 12-hour format
+      h = h % 12;
+      // h=0 logically is 0 minutes base, but displays as 12. Calculate angle directly using totalMinutes
+      // totalMinutes range 0-719
+      // If h=0 (noon or midnight), totalMinutes = 0 * 60 + m = m
+      // If h=1, totalMinutes = 60 + m
+
+      // Fix: if h=0, in our logic, to display 12:xx, it can be 0:xx
+
+      currentTotalMinutes = h * 60 + m;
+      // Simple animation effect
+      const tempSliderVal = parseInt(timeSlider.value);
+      // Make the animation look like it's turning
+
+      updateClockDisplay(currentTotalMinutes, true);
+    }
+
+    // Mode Switch
+    function setMode(mode) {
+      currentMode = mode;
+
+      if (mode === 'explore') {
+        btnModeExplore.className = "mode-active flex-1 py-2 rounded-xl font-bold transition-all shadow-sm border-2";
+        btnModeQuiz.className = "mode-inactive flex-1 py-2 rounded-xl font-bold transition-all shadow-sm border-2";
+
+        digitalDisplay.classList.remove('hidden');
+        exploreControls.classList.remove('hidden');
+        quizControls.classList.add('hidden');
+
+        // Restore explore mode time
+        timeSlider.disabled = false;
+        updateClockDisplay(currentTotalMinutes, true);
+
+      } else {
+        btnModeExplore.className = "mode-inactive flex-1 py-2 rounded-xl font-bold transition-all shadow-sm border-2";
+        btnModeQuiz.className = "mode-active flex-1 py-2 rounded-xl font-bold transition-all shadow-sm border-2";
+
+        digitalDisplay.classList.add('hidden');
+        exploreControls.classList.add('hidden');
+        quizControls.classList.remove('hidden');
+
+        timeSlider.disabled = true;
+        startQuiz();
+      }
+    }
+
+    // Quiz Mode Logic
+    function startQuiz() {
+      // Generate random time (in 5-minute increments to reduce difficulty)
+      const randomSlot = Math.floor(Math.random() * (720 / 5));
+      quizTargetMinutes = randomSlot * 5;
+
+      // Clear input
+      document.getElementById('quizHour').value = '';
+      document.getElementById('quizMinute').value = '';
+      feedbackMsg.textContent = '';
+      feedbackMsg.className = "h-8 font-bold text-lg";
+
+      // Animate to target time
+      updateClockDisplay(quizTargetMinutes, true);
+    }
+
+    function checkAnswer() {
+      const inputH = parseInt(document.getElementById('quizHour').value);
+      const inputM = parseInt(document.getElementById('quizMinute').value);
+
+      if (isNaN(inputH) || isNaN(inputM)) {
+        feedbackMsg.textContent = "⚠️ Please enter a complete time!";
+        feedbackMsg.className = "h-8 font-bold text-lg text-yellow-600 shake";
+        return;
+      }
+
+      // Calculate target time
+      let targetH = Math.floor(quizTargetMinutes / 60);
+      if (targetH === 0) targetH = 12;
+      let targetM = quizTargetMinutes % 60;
+
+      if (inputH === targetH && inputM === targetM) {
+        // Correct
+        feedbackMsg.innerHTML = "🎉 Awesome! You got it right!";
+        feedbackMsg.className = "h-8 font-bold text-lg text-green-600";
+        anime({
+          targets: '.clock-face',
+          scale: [1, 1.1, 1],
+          duration: 500,
+          easing: 'easeInOutQuad'
+        });
+
+        // Auto next question after 1 second
+        setTimeout(() => {
+          if (currentMode === 'quiz') startQuiz();
+        }, 1500);
+
+      } else {
+        // Incorrect
+        feedbackMsg.textContent = "🤔 Not quite right, take another look?";
+        feedbackMsg.className = "h-8 font-bold text-lg text-red-500 shake";
+
+        // Animate shake input boxes
+        anime({
+          targets: '#quizControls input',
+          translateX: [0, -10, 10, -10, 10, 0],
+          duration: 500
+        });
+      }
+    }
+
+    // Start
+    init();
+
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💰 Learn RMB - Grade 2 Math</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .money-card {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      border-radius: 20px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .money-card:hover {
+      transform: translateY(-10px) scale(1.05);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+    
+    .money-card.yuan-100 {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    }
+    
+    .money-card.yuan-50 {
+      background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+    }
+    
+    .money-card.yuan-20 {
+      background: linear-gradient(135deg, #f9ca24 0%, #f0932b 100%);
+    }
+    
+    .money-card.yuan-10 {
+      background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+    }
+    
+    .money-card.yuan-5 {
+      background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
+    }
+    
+    .money-card.yuan-1 {
+      background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+    }
+    
+    .coin {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    
+    .coin:hover {
+      transform: scale(1.1) rotate(15deg);
+    }
+    
+    .coin.gold {
+      background: linear-gradient(135deg, #f9ca24 0%, #f0932b 100%);
+      border: 5px solid #daa520;
+    }
+    
+    .coin.silver {
+      background: linear-gradient(135deg, #dfe6e9 0%, #b2bec3 100%);
+      border: 5px solid #95a5a6;
+    }
+    
+    .stage {
+      display: none;
+      animation: fadeIn 0.5s ease;
+    }
+    
+    .stage.active {
+      display: block;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    
+    .bounce {
+      animation: bounce 0.6s ease;
+    }
+    
+    .shopping-item {
+      background: white;
+      border-radius: 15px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .shopping-item:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    
+    .money-selector {
+      display: inline-block;
+      margin: 5px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      user-select: none;
+      font-weight: bold;
+    }
+    
+    .money-selector:hover {
+      transform: scale(1.1);
+    }
+    
+    .money-selector.selected {
+      outline: 4px solid #fff;
+      outline-offset: 2px;
+    }
+    
+    .progress-bar {
+      height: 30px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 15px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00b894, #00cec9);
+      transition: width 0.5s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+    
+    .btn {
+      padding: 15px 40px;
+      border: none;
+      border-radius: 50px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+      color: white;
+    }
+    
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      max-width: 500px;
+      text-align: center;
+      animation: scaleIn 0.3s ease;
+    }
+    
+    @keyframes scaleIn {
+      from {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: #f39c12;
+      position: absolute;
+      animation: confettiFall 3s linear;
+    }
+    
+    @keyframes confettiFall {
+      to {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+  <!-- Home -->
+    <div id="stage0" class="stage active">
+      <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-2xl mx-auto mt-10">
+  <h1 class="text-5xl font-bold mb-4">💰 Learn RMB</h1>
+  <p class="text-2xl text-gray-600 mb-8">Grade 2 Math - Fun learning</p>
+        
+        <div class="text-left bg-blue-50 rounded-xl p-6 mb-8">
+          <h3 class="text-xl font-bold mb-4 text-blue-800">📚 Learning goals:</h3>
+          <ul class="space-y-2 text-lg">
+            <li>✅ Recognize different RMB denominations</li>
+            <li>✅ Understand the relationship between yuan, jiao, and fen</li>
+            <li>✅ Practice simple conversions</li>
+            <li>✅ Simulate shopping scenarios</li>
+          </ul>
+        </div>
+        
+        <button onclick="nextStage(1)" class="btn btn-primary text-xl">
+          🚀 Start learning
+        </button>
+      </div>
+    </div>
+    
+  <!-- Level 1: Banknotes -->
+    <div id="stage1" class="stage">
+      <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl mx-auto">
+  <h2 class="text-4xl font-bold text-center mb-2">📄 Banknotes</h2>
+  <p class="text-center text-gray-600 mb-6">Click a banknote to learn more</p>
+        
+        <div class="progress-bar mb-6">
+          <div class="progress-fill" id="progress1" style="width: 0%">
+            <span id="progressText1">0/6</span>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
+          <div class="money-card yuan-100" onclick="learnMoney(100, 'red')">
+            <div class="text-6xl text-center mb-4">💵</div>
+            <div class="text-4xl font-bold text-white text-center">100 yuan</div>
+          </div>
+          
+          <div class="money-card yuan-50" onclick="learnMoney(50, 'green')">
+            <div class="text-6xl text-center mb-4">💵</div>
+            <div class="text-4xl font-bold text-white text-center">50 yuan</div>
+          </div>
+          
+          <div class="money-card yuan-20" onclick="learnMoney(20, 'yellow')">
+            <div class="text-6xl text-center mb-4">💵</div>
+            <div class="text-4xl font-bold text-white text-center">20 yuan</div>
+          </div>
+          
+          <div class="money-card yuan-10" onclick="learnMoney(10, 'purple')">
+            <div class="text-6xl text-center mb-4">💵</div>
+            <div class="text-4xl font-bold text-white text-center">10 yuan</div>
+          </div>
+          
+          <div class="money-card yuan-5" onclick="learnMoney(5, 'pink')">
+            <div class="text-6xl text-center mb-4">💵</div>
+            <div class="text-4xl font-bold text-white text-center">5 yuan</div>
+          </div>
+          
+          <div class="money-card yuan-1" onclick="learnMoney(1, 'cyan')">
+            <div class="text-6xl text-center mb-4">💵</div>
+            <div class="text-4xl font-bold text-white text-center">1 yuan</div>
+          </div>
+        </div>
+        
+        <div class="text-center">
+          <button id="nextBtn1" onclick="nextStage(2)" class="btn btn-success text-xl" style="display: none;">
+            Next level ➡️
+          </button>
+        </div>
+      </div>
+    </div>
+    
+  <!-- Level 2: Coins -->
+    <div id="stage2" class="stage">
+      <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl mx-auto">
+  <h2 class="text-4xl font-bold text-center mb-2">🪙 Coins</h2>
+  <p class="text-center text-gray-600 mb-6">Click a coin to learn more</p>
+        
+        <div class="progress-bar mb-6">
+          <div class="progress-fill" id="progress2" style="width: 0%">
+            <span id="progressText2">0/3</span>
+          </div>
+        </div>
+        
+        <div class="flex justify-center items-center gap-12 flex-wrap mb-8">
+          <div class="text-center">
+            <div class="coin gold mx-auto mb-2" onclick="learnCoin(1, 'yuan')">
+              <div>1 yuan</div>
+            </div>
+            <div class="text-lg font-bold">1-yuan coin</div>
+          </div>
+          
+          <div class="text-center">
+            <div class="coin silver mx-auto mb-2" onclick="learnCoin(5, 'jiao')">
+              <div>5 jiao</div>
+            </div>
+            <div class="text-lg font-bold">5-jiao coin</div>
+          </div>
+          
+          <div class="text-center">
+            <div class="coin silver mx-auto mb-2" onclick="learnCoin(1, 'jiao')">
+              <div>1 jiao</div>
+            </div>
+            <div class="text-lg font-bold">1-jiao coin</div>
+          </div>
+        </div>
+        
+        <div class="bg-yellow-50 rounded-xl p-6 mb-6">
+          <h3 class="text-xl font-bold mb-3">💡 Key facts:</h3>
+          <div class="text-lg space-y-2">
+            <p>🔸 1 yuan = 10 jiao</p>
+            <p>🔸 1 jiao = 10 fen</p>
+            <p>🔸 1 yuan = 100 fen</p>
+          </div>
+        </div>
+        
+        <div class="text-center">
+          <button id="nextBtn2" onclick="nextStage(3)" class="btn btn-success text-xl" style="display: none;">
+            Next level ➡️
+          </button>
+        </div>
+      </div>
+    </div>
+    
+  <!-- Level 3: Conversion practice -->
+    <div id="stage3" class="stage">
+      <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl mx-auto">
+  <h2 class="text-4xl font-bold text-center mb-2">🔄 Conversion practice</h2>
+  <p class="text-center text-gray-600 mb-6">Choose the correct answer</p>
+        
+        <div class="progress-bar mb-6">
+          <div class="progress-fill" id="progress3" style="width: 0%">
+            <span id="progressText3">0/5</span>
+          </div>
+        </div>
+        
+        <div id="quizArea" class="mb-6">
+          <div class="bg-blue-50 rounded-xl p-8 mb-6 text-center">
+            <h3 class="text-3xl font-bold mb-4" id="quizQuestion"></h3>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4" id="quizOptions"></div>
+        </div>
+        
+        <div id="feedback" class="text-center text-2xl font-bold mb-4" style="display: none;"></div>
+        
+        <div class="text-center">
+          <button id="nextBtn3" onclick="nextStage(4)" class="btn btn-success text-xl" style="display: none;">
+            Final level ➡️
+          </button>
+        </div>
+      </div>
+    </div>
+    
+  <!-- Level 4: Shopping game -->
+    <div id="stage4" class="stage">
+      <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-5xl mx-auto">
+  <h2 class="text-4xl font-bold text-center mb-2">🛒 Little Shopper</h2>
+  <p class="text-center text-gray-600 mb-6">How much do you need to pay? Choose suitable money.</p>
+        
+        <div class="grid md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <h3 class="text-2xl font-bold mb-4">🎯 Buy:</h3>
+            <div id="shoppingItem" class="shopping-item text-center">
+              <div class="text-6xl mb-2">📚</div>
+              <div class="text-2xl font-bold mb-2">Book</div>
+              <div class="text-3xl font-bold text-red-600">Price: <span id="itemPrice"></span> yuan</div>
+            </div>
+          </div>
+          
+          <div>
+            <h3 class="text-2xl font-bold mb-4">💰 Choose payment:</h3>
+            <div id="moneyOptions" class="space-y-3"></div>
+            <div class="mt-4 text-center">
+              <div class="text-xl font-bold mb-2">Selected: <span id="selectedAmount">0</span> yuan</div>
+              <button onclick="checkShopping()" class="btn btn-primary">Pay</button>
+              <button onclick="resetShopping()" class="btn bg-gray-400 text-white ml-2">Reset</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="progress-bar mb-6">
+          <div class="progress-fill" id="progress4" style="width: 0%">
+            <span id="progressText4">0/5</span>
+          </div>
+        </div>
+        
+        <div id="shoppingFeedback" class="text-center text-2xl font-bold mb-4" style="display: none;"></div>
+        
+        <div class="text-center">
+          <button id="completeBtn" onclick="showComplete()" class="btn btn-success text-xl" style="display: none;">
+            Finish 🎉
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <div id="modalContent"></div>
+  <button onclick="closeModal()" class="btn btn-primary mt-4">Got it</button>
+    </div>
+  </div>
+  
+  <script>
+  // Global state
+    let learnedMoney = new Set();
+    let learnedCoins = new Set();
+    let quizIndex = 0;
+    let quizCorrect = 0;
+    let shoppingIndex = 0;
+    let shoppingCorrect = 0;
+    let selectedMoney = [];
+    
+  // Conversion question bank
+    const quizData = [
+      { question: 'How many jiao are in 1 yuan?', options: ['5 jiao', '10 jiao', '20 jiao', '100 jiao'], answer: 1 },
+      { question: 'How many fen are in 5 jiao?', options: ['10 fen', '50 fen', '5 fen', '100 fen'], answer: 1 },
+      { question: 'How many yuan are in 10 jiao?', options: ['1 yuan', '10 yuan', '5 yuan', '2 yuan'], answer: 0 },
+      { question: 'How many jiao are in 2 yuan?', options: ['10 jiao', '20 jiao', '5 jiao', '15 jiao'], answer: 1 },
+      { question: 'How many fen are in 1 yuan?', options: ['10 fen', '50 fen', '100 fen', '20 fen'], answer: 2 }
+    ];
+    
+  // Shopping question bank
+    const shoppingData = [
+      { item: '📚', name: 'Book', price: 15, emoji: '📚' },
+      { item: '✏️', name: 'Pencil', price: 2, emoji: '✏️' },
+      { item: '🍎', name: 'Apple', price: 8, emoji: '🍎' },
+      { item: '🎨', name: 'Paintbrush', price: 25, emoji: '🎨' },
+      { item: '⚽', name: 'Soccer ball', price: 50, emoji: '⚽' }
+    ];
+    
+  // Switch levels
+    function nextStage(stage) {
+      document.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
+      document.getElementById('stage' + stage).classList.add('active');
+      
+      if (stage === 3) {
+        showQuiz();
+      } else if (stage === 4) {
+        showShopping();
+      }
+    }
+    
+  // Learn banknotes
+    function learnMoney(value, color) {
+      learnedMoney.add(value);
+      
+      let content = `
+        <div class="text-6xl mb-4">💵</div>
+  <h3 class="text-3xl font-bold mb-4">${value}-yuan banknote</h3>
+  <p class="text-xl text-gray-700 mb-2">This is a ${value}-yuan banknote.</p>
+  <p class="text-lg text-gray-600">It can be used to buy goods and services.</p>
+      `;
+      
+      showModal(content);
+      updateProgress(1, learnedMoney.size, 6);
+      
+      if (learnedMoney.size === 6) {
+        setTimeout(() => {
+          document.getElementById('nextBtn1').style.display = 'inline-block';
+          anime({
+            targets: '#nextBtn1',
+            scale: [0.8, 1.1, 1],
+            duration: 600
+          });
+        }, 500);
+      }
+    }
+    
+  // Learn coins
+    function learnCoin(value, unit) {
+      learnedCoins.add(value + unit);
+      
+  let unitName = unit === 'yuan' ? 'yuan' : 'jiao';
+      let content = `
+        <div class="text-6xl mb-4">🪙</div>
+  <h3 class="text-3xl font-bold mb-4">${value} ${unitName} coin</h3>
+  <p class="text-xl text-gray-700 mb-2">This is a ${value} ${unitName} coin.</p>
+  <p class="text-lg text-gray-600">Coins are easy to carry and are often used for small payments.</p>
+      `;
+      
+      showModal(content);
+      updateProgress(2, learnedCoins.size, 3);
+      
+      if (learnedCoins.size === 3) {
+        setTimeout(() => {
+          document.getElementById('nextBtn2').style.display = 'inline-block';
+          anime({
+            targets: '#nextBtn2',
+            scale: [0.8, 1.1, 1],
+            duration: 600
+          });
+        }, 500);
+      }
+    }
+    
+  // Update progress bar
+    function updateProgress(stage, current, total) {
+      const percent = (current / total) * 100;
+      document.getElementById('progress' + stage).style.width = percent + '%';
+  document.getElementById('progressText' + stage).textContent = current + '/' + total;
+    }
+    
+  // Show a conversion question
+    function showQuiz() {
+      if (quizIndex >= quizData.length) {
+        document.getElementById('nextBtn3').style.display = 'inline-block';
+        anime({
+          targets: '#nextBtn3',
+          scale: [0.8, 1.1, 1],
+          duration: 600
+        });
+        return;
+      }
+      
+      const quiz = quizData[quizIndex];
+      document.getElementById('quizQuestion').textContent = quiz.question;
+      
+      const optionsHTML = quiz.options.map((option, index) => `
+        <button onclick="answerQuiz(${index})" class="bg-gradient-to-r from-purple-400 to-pink-400 text-white text-xl font-bold py-6 rounded-xl hover:scale-105 transition-all">
+          ${option}
+        </button>
+      `).join('');
+      
+      document.getElementById('quizOptions').innerHTML = optionsHTML;
+      document.getElementById('feedback').style.display = 'none';
+    }
+    
+  // Answer a conversion question
+    function answerQuiz(selected) {
+      const quiz = quizData[quizIndex];
+      const feedback = document.getElementById('feedback');
+      
+      if (selected === quiz.answer) {
+  feedback.textContent = '✅ Correct! Great job!';
+        feedback.className = 'text-center text-2xl font-bold mb-4 text-green-600';
+        quizCorrect++;
+        createConfetti();
+      } else {
+  feedback.textContent = '❌ Not quite. The correct answer is: ' + quiz.options[quiz.answer];
+        feedback.className = 'text-center text-2xl font-bold mb-4 text-red-600';
+      }
+      
+      feedback.style.display = 'block';
+      quizIndex++;
+      updateProgress(3, quizIndex, quizData.length);
+      
+      setTimeout(() => {
+        showQuiz();
+      }, 2000);
+    }
+    
+  // Show a shopping question
+    function showShopping() {
+      if (shoppingIndex >= shoppingData.length) {
+        document.getElementById('completeBtn').style.display = 'inline-block';
+        anime({
+          targets: '#completeBtn',
+          scale: [0.8, 1.1, 1],
+          duration: 600
+        });
+        return;
+      }
+      
+      const item = shoppingData[shoppingIndex];
+      document.querySelector('#shoppingItem .text-6xl').textContent = item.emoji;
+      document.querySelector('#shoppingItem .text-2xl').textContent = item.name;
+      document.getElementById('itemPrice').textContent = item.price;
+      
+  // Generate money options
+      const moneyValues = [1, 5, 10, 20, 50];
+      const optionsHTML = moneyValues.map(value => `
+        <div class="money-selector bg-gradient-to-r from-green-400 to-blue-400 text-white text-xl" 
+             data-value="${value}" onclick="selectMoney(${value}, this)">
+          💵 ${value} yuan
+        </div>
+      `).join('');
+      
+      document.getElementById('moneyOptions').innerHTML = optionsHTML;
+      document.getElementById('selectedAmount').textContent = '0';
+      document.getElementById('shoppingFeedback').style.display = 'none';
+      selectedMoney = [];
+    }
+    
+  // Select money
+    function selectMoney(value, element) {
+      selectedMoney.push(value);
+      element.classList.add('selected');
+      
+      const total = selectedMoney.reduce((a, b) => a + b, 0);
+      document.getElementById('selectedAmount').textContent = total;
+      
+      anime({
+        targets: element,
+        scale: [1, 1.2, 1],
+        duration: 300
+      });
+    }
+    
+  // Reset selection
+    function resetShopping() {
+      selectedMoney = [];
+      document.getElementById('selectedAmount').textContent = '0';
+      document.querySelectorAll('.money-selector').forEach(el => {
+        el.classList.remove('selected');
+      });
+    }
+    
+  // Check payment
+    function checkShopping() {
+      const item = shoppingData[shoppingIndex];
+      const total = selectedMoney.reduce((a, b) => a + b, 0);
+      const feedback = document.getElementById('shoppingFeedback');
+      
+      if (total === item.price) {
+  feedback.textContent = '✅ Correct payment! Well done!';
+        feedback.className = 'text-center text-2xl font-bold mb-4 text-green-600';
+        shoppingCorrect++;
+        createConfetti();
+        
+        setTimeout(() => {
+          shoppingIndex++;
+          updateProgress(4, shoppingIndex, shoppingData.length);
+          showShopping();
+        }, 2000);
+      } else if (total < item.price) {
+  feedback.textContent = "💰 Not enough money. You're short by " + (item.price - total) + ' yuan';
+        feedback.className = 'text-center text-2xl font-bold mb-4 text-orange-600';
+      } else {
+  feedback.textContent = "💸 Too much money by " + (total - item.price) + ' yuan. Try again.';
+        feedback.className = 'text-center text-2xl font-bold mb-4 text-blue-600';
+      }
+      
+      feedback.style.display = 'block';
+    }
+    
+  // Show completion
+    function showComplete() {
+      const totalScore = Math.round(((quizCorrect / quizData.length) * 50 + (shoppingCorrect / shoppingData.length) * 50));
+      
+      let content = `
+        <div class="text-8xl mb-4">🎉</div>
+  <h3 class="text-4xl font-bold mb-4">Congratulations! You finished!</h3>
+        <div class="text-left bg-yellow-50 rounded-xl p-6 mb-4">
+          <p class="text-2xl mb-2">📊 Report:</p>
+          <p class="text-xl mb-1">Conversions: ${quizCorrect}/${quizData.length} correct</p>
+          <p class="text-xl mb-1">Shopping: ${shoppingCorrect}/${shoppingData.length} correct</p>
+          <p class="text-2xl font-bold text-green-600 mt-3">Score: ${totalScore}</p>
+        </div>
+  <p class="text-xl text-gray-700">Keep going — you'll get even better!</p>
+      `;
+      
+      showModal(content);
+      createManyConfetti();
+    }
+    
+  // Show modal
+    function showModal(content) {
+      document.getElementById('modalContent').innerHTML = content;
+      document.getElementById('modal').classList.add('active');
+    }
+    
+  // Close modal
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+    
+  // Confetti
+    function createConfetti() {
+      for (let i = 0; i < 30; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + '%';
+        confetti.style.background = ['#f39c12', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'][Math.floor(Math.random() * 5)];
+        confetti.style.animationDelay = Math.random() * 0.5 + 's';
+        document.body.appendChild(confetti);
+        
+        setTimeout(() => confetti.remove(), 3000);
+      }
+    }
+    
+  // A lot of confetti
+    function createManyConfetti() {
+      for (let i = 0; i < 100; i++) {
+        setTimeout(() => createConfetti(), i * 50);
+      }
+    }
+  </script>
+</body>
+</html>

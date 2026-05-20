@@ -1,0 +1,2186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Little Banker</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f0f4f8;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+
+    #app-container {
+      width: 1920px;
+      height: 1080px;
+      background: #fff;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform-origin: top left;
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .page.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+  /* Shared component styles */
+    .activity-header {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      z-index: 10;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 2px solid white;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 18px;
+    }
+
+    .back-btn:hover {
+      background: white;
+      color: #667eea;
+    }
+
+    .progress {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .activity-content {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: auto;
+    }
+
+    .activity-footer {
+      height: 80px;
+      min-height: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .next-btn {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      border: none;
+      color: white;
+      padding: 15px 50px;
+      border-radius: 30px;
+      font-size: 22px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .next-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .next-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+  /* Feedback animations */
+    @keyframes correct-pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    @keyframes wrong-shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-10px);
+      }
+
+      75% {
+        transform: translateX(10px);
+      }
+    }
+
+    .feedback-correct {
+      animation: correct-pulse 0.5s;
+    }
+
+    .feedback-wrong {
+      animation: wrong-shake 0.5s;
+    }
+  </style>
+  <!-- Three.js for 3D Geometry Activities -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+  <div id="app-container">
+    <div id="home-page" class="page active"></div>
+    <div id="activity-1" class="page"></div>
+    <div id="activity-2" class="page"></div>
+    <div id="activity-3" class="page"></div>
+  </div>
+  <script>
+  // ========== TeachingGameEngine (drag-and-drop engine) ==========
+    class TeachingGameEngine {
+      constructor() {
+        this.draggables = [];
+        this.dropZones = [];
+        this.events = {};
+        this.isMobile = 'ontouchstart' in window;
+        this._initStyle();
+      }
+      makeDraggable(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { revert: true, targetGroup: 'default', ...options };
+        const offsetParent = element.offsetParent || document.body;
+        const parentRect = offsetParent.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(element);
+        if (computedStyle.position === 'static') {
+          element.style.position = 'absolute';
+          element.style.left = (rect.left - parentRect.left) + 'px';
+          element.style.top = (rect.top - parentRect.top) + 'px';
+        }
+        config.initialX = parseFloat(element.style.left) || 0;
+        config.initialY = parseFloat(element.style.top) || 0;
+        config.zIndex = computedStyle.zIndex;
+        this._bindDragEvents(element, config);
+        element.style.cursor = 'grab';
+        element.classList.add('tge-draggable');
+      }
+      makeDropZone(el, options = {}) {
+        const element = this._getElement(el);
+        if (!element) return;
+        const config = { group: 'default', accept: null, ...options };
+        element.classList.add('tge-dropzone');
+        this.dropZones.push({ element, config });
+      }
+      playSound(type) { console.log(`[Audio] Playing ${type} sound`); }
+      showFeedback(el, type = 'pulse') {
+        const element = this._getElement(el);
+        if (!element) return;
+        element.classList.remove('tge-anim-shake', 'tge-anim-pulse');
+        void element.offsetWidth;
+        element.classList.add(`tge-anim-${type}`);
+        setTimeout(() => element.classList.remove(`tge-anim-${type}`), 800);
+      }
+      on(eventName, callback) {
+        if (!this.events[eventName]) this.events[eventName] = [];
+        this.events[eventName].push(callback);
+      }
+      _getElement(el) { return typeof el === 'string' ? document.getElementById(el) : el; }
+      _bindDragEvents(element, config) {
+        let isDragging = false, startX, startY, initialLeft, initialTop;
+        const self = this;
+        const startHandler = (e) => {
+          e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          isDragging = true; startX = point.clientX; startY = point.clientY;
+          initialLeft = parseFloat(element.style.left) || 0;
+          initialTop = parseFloat(element.style.top) || 0;
+          element.style.zIndex = 1000; element.style.cursor = 'grabbing';
+          element.classList.add('tge-dragging');
+          self._emit('dragStart', { element });
+        };
+        const moveHandler = (e) => {
+          if (!isDragging) return; e.preventDefault();
+          const point = self.isMobile ? e.touches[0] : e;
+          element.style.left = `${initialLeft + point.clientX - startX}px`;
+          element.style.top = `${initialTop + point.clientY - startY}px`;
+          self._checkDropZones(element, config);
+        };
+        const endHandler = (e) => {
+          if (!isDragging) return; isDragging = false;
+          element.style.zIndex = config.zIndex; element.style.cursor = 'grab';
+          element.classList.remove('tge-dragging');
+          const dropZone = self._checkDropZones(element, config);
+          if (dropZone) { self._emit('drop', { source: element, target: dropZone.element }); self._snapTo(element, dropZone.element); }
+          else { if (config.revert) self._revert(element, config); self._emit('dragEnd', { element, success: false }); }
+          self.dropZones.forEach(z => z.element.classList.remove('tge-drag-over'));
+        };
+        if (this.isMobile) { element.addEventListener('touchstart', startHandler, { passive: false }); window.addEventListener('touchmove', moveHandler, { passive: false }); window.addEventListener('touchend', endHandler); }
+        else { element.addEventListener('mousedown', startHandler); window.addEventListener('mousemove', moveHandler); window.addEventListener('mouseup', endHandler); }
+      }
+      _checkDropZones(dragEl, dragConfig) {
+        let bestZone = null, maxArea = 0; const dragRect = dragEl.getBoundingClientRect();
+        this.dropZones.forEach(zone => {
+          if (zone.config.group !== dragConfig.targetGroup) return;
+          const zoneRect = zone.element.getBoundingClientRect();
+          const overlap = !(dragRect.right < zoneRect.left || dragRect.left > zoneRect.right || dragRect.bottom < zoneRect.top || dragRect.top > zoneRect.bottom);
+          if (overlap) { const x_overlap = Math.max(0, Math.min(dragRect.right, zoneRect.right) - Math.max(dragRect.left, zoneRect.left)); const y_overlap = Math.max(0, Math.min(dragRect.bottom, zoneRect.bottom) - Math.max(dragRect.top, zoneRect.top)); const area = x_overlap * y_overlap; if (area > maxArea) { maxArea = area; bestZone = zone; } }
+        });
+        this.dropZones.forEach(z => z === bestZone ? z.element.classList.add('tge-drag-over') : z.element.classList.remove('tge-drag-over'));
+        return bestZone;
+      }
+      _snapTo(dragEl, targetEl) { const offsetParent = dragEl.offsetParent || document.body; const parentRect = offsetParent.getBoundingClientRect(); const targetRect = targetEl.getBoundingClientRect(); const dragRect = dragEl.getBoundingClientRect(); const centerX = targetRect.left + targetRect.width / 2 - dragRect.width / 2 - parentRect.left; const centerY = targetRect.top + targetRect.height / 2 - dragRect.height / 2 - parentRect.top; dragEl.style.transition = 'all 0.3s ease-out'; dragEl.style.left = centerX + 'px'; dragEl.style.top = centerY + 'px'; setTimeout(() => dragEl.style.transition = '', 300); }
+      _revert(element, config) { element.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; element.style.left = config.initialX + 'px'; element.style.top = config.initialY + 'px'; setTimeout(() => element.style.transition = '', 300); }
+      _emit(name, data) { if (this.events[name]) this.events[name].forEach(cb => cb(data)); }
+      _initStyle() { if (document.getElementById('tge-style')) return; const css = `.tge-draggable { touch-action: none; user-select: none; } .tge-drag-over { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); transform: scale(1.02); transition: transform 0.2s; } .tge-anim-shake { animation: tge-shake 0.5s; } .tge-anim-pulse { animation: tge-pulse 0.5s; } @keyframes tge-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } } @keyframes tge-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }`; const style = document.createElement('style'); style.id = 'tge-style'; style.textContent = css; document.head.appendChild(style); }
+      static Draggable = class {
+        constructor(element, options = {}) { this.element = typeof element === 'string' ? document.getElementById(element) : element; this.options = { container: document.body, ...options }; this.isDragging = false; this.isMobile = 'ontouchstart' in window; this._bind(); }
+        _bind() {
+          const el = this.element; let startX, startY, elX, elY;
+          const start = (e) => { e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; this.isDragging = true; startX = pt.clientX; startY = pt.clientY; elX = parseFloat(el.style.left) || 0; elY = parseFloat(el.style.top) || 0; if (this.options.onDragStart) this.options.onDragStart(e); };
+          const move = (e) => { if (!this.isDragging) return; e.preventDefault(); const pt = this.isMobile ? e.touches[0] : e; el.style.left = (elX + pt.clientX - startX) + 'px'; el.style.top = (elY + pt.clientY - startY) + 'px'; };
+          const end = (e) => { if (!this.isDragging) return; this.isDragging = false; if (this.options.onDragEnd) this.options.onDragEnd(e); };
+          if (this.isMobile) { el.addEventListener('touchstart', start, { passive: false }); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end); }
+          else { el.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end); }
+        }
+        destroy() { }
+      };
+    }
+    window.TeachingGameEngine = TeachingGameEngine;
+    window.gameEngine = new TeachingGameEngine();
+
+  // Responsive scaling
+    function resizeApp() {
+      const c = document.getElementById('app-container');
+      const scaleX = window.innerWidth / 1920;
+      const scaleY = window.innerHeight / 1080;
+      const scale = Math.min(scaleX, scaleY);
+      // Compute scaled size
+      const scaledWidth = 1920 * scale;
+      const scaledHeight = 1080 * scale;
+      // Compute center offset
+      const offsetX = (window.innerWidth - scaledWidth) / 2;
+      const offsetY = (window.innerHeight - scaledHeight) / 2;
+      // Apply transform: position to center first, then scale
+      c.style.left = offsetX + 'px';
+      c.style.top = offsetY + 'px';
+      c.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', resizeApp);
+    resizeApp();
+
+    // Activity manager
+    const ActivityManager = {
+      current: null,
+      // Components to wait for (filled when components register)
+      _requiredComponents: [],
+
+      async show(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        if (this.current && window[`ACTIVITY_${this.current}`]?.destroy) {
+          window[`ACTIVITY_${this.current}`].destroy();
+        }
+        if (id === 0) {
+          document.getElementById('home-page').classList.add('active');
+          if (window.HOME_PAGE) HOME_PAGE.init();
+          this.current = null;
+        } else {
+          document.getElementById(`activity-${id}`).classList.add('active');
+          const activity = window[`ACTIVITY_${id}`];
+          if (activity) {
+            // Wait for all required components to be registered
+            await this._waitForComponents();
+            activity.init();
+          }
+          this.current = id;
+        }
+      },
+
+      // Wait for all registered components to be ready
+      async _waitForComponents() {
+        if (this._requiredComponents.length === 0) return;
+        const promises = this._requiredComponents.map(name =>
+          customElements.whenDefined(name).catch(() => { })
+        );
+        await Promise.all(promises);
+      },
+
+      // Register a component to wait for (called by component scripts)
+      registerComponent(tagName) {
+        if (!this._requiredComponents.includes(tagName)) {
+          this._requiredComponents.push(tagName);
+        }
+      },
+
+      goHome() { this.show(0); }
+    };
+  window.ActivityManager = ActivityManager;  // Expose on window for LLM-generated code
+
+  // Utility helpers
+    function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function playSound(type) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        if (type === 'correct') {
+          osc.frequency.setValueAtTime(523, ctx.currentTime);
+          osc.frequency.setValueAtTime(784, ctx.currentTime + 0.15);
+        } else {
+          osc.frequency.setValueAtTime(200, ctx.currentTime);
+        }
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch (e) { }
+    }
+
+    /**
+     * Create an activity header (includes a Home button)
+     * @param {string} title - Activity title
+     * @param {string} progressText - Progress text (optional), e.g. "1/5"
+     * @returns {string} HTML string
+     */
+    function createActivityHeader(title, progressText = '') {
+      return `
+        <div class="activity-header">
+          <button class="back-btn" onclick="ActivityManager.goHome()">🏠 Home</button>
+          <h2 style="font-size: 28px; margin: 0;">${title}</h2>
+          <div class="progress">${progressText}</div>
+        </div>
+      `;
+    }
+    window.createActivityHeader = createActivityHeader;
+
+    // ========== 3D geometry helper (built-in) ==========
+    // For 3D geometry activities. Supports: cuboid, cube, sphere, cylinder, cone, frustum, prism, pyramid
+    const Geometry3DHelper = {
+      // Supported types and default parameters
+      TYPES: {
+        cuboid: { l: 4, w: 6, h: 3 },
+        cube: { size: 4 },
+        sphere: { radius: 3 },
+        cylinder: { radiusTop: 2, radiusBottom: 2, height: 5 },
+        cone: { radius: 2, height: 5 },
+        frustum: { radiusTop: 1, radiusBottom: 2.5, height: 4 },
+        prism: { sides: 6, radius: 2, height: 4 },
+        pyramid: { sides: 4, radius: 2, height: 5 }
+      },
+
+      /**
+  * Create a 3D solid renderer
+  * @param {HTMLElement} container - Container element
+  * @param {string} type - Type: cuboid/cube/sphere/cylinder/cone/frustum/prism/pyramid
+  * @param {object} params - Parameter object
+  * @param {object} options - Optional config { autoRotate, showEdges }
+  * @returns {object} Controller { updateParams, setType, dispose }
+       */
+      create(container, type = 'cuboid', params = null, options = {}) {
+        const self = {
+          scene: null, camera: null, renderer: null,
+          mesh: null, edges: null, edgeLines: null, geometry: null,
+          currentType: type,
+          currentParams: params || { ...this.TYPES[type] },
+          options: { autoRotate: true, showEdges: true, ...options },
+          boxMaterials: null
+        };
+
+  // Initialize scene
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 400;
+
+        self.scene = new THREE.Scene();
+        self.scene.background = new THREE.Color(0xe8f4f8);
+
+        self.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+        self.camera.position.set(12, 9, 15);
+        self.camera.lookAt(0, 0, 0);
+
+        self.renderer = new THREE.WebGLRenderer({ antialias: true });
+        self.renderer.setSize(width, height);
+        self.renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(self.renderer.domElement);
+
+  // Lighting
+        self.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        self.scene.add(dirLight);
+
+  // Materials
+        self.boxMaterials = [
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0xe74c3c }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x2ecc71 }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db }),
+          new THREE.MeshLambertMaterial({ color: 0x3498db })
+        ];
+
+  // Create geometry
+        const createGeometry = () => {
+          if (self.mesh) { self.scene.remove(self.mesh); self.geometry.dispose(); }
+          if (self.edgeLines) { self.scene.remove(self.edgeLines); self.edges.dispose(); }
+
+          const p = self.currentParams;
+          switch (self.currentType) {
+            case 'cube': self.geometry = new THREE.BoxGeometry(p.size, p.size, p.size); break;
+            case 'cuboid': self.geometry = new THREE.BoxGeometry(p.w, p.h, p.l); break;
+            case 'sphere': self.geometry = new THREE.SphereGeometry(p.radius, 32, 24); break;
+            case 'cylinder': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'cone': self.geometry = new THREE.ConeGeometry(p.radius, p.height, 32); break;
+            case 'frustum': self.geometry = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, 32); break;
+            case 'prism': self.geometry = new THREE.CylinderGeometry(p.radius, p.radius, p.height, p.sides); break;
+            case 'pyramid': self.geometry = new THREE.ConeGeometry(p.radius, p.height, p.sides); self.geometry.rotateY(Math.PI / p.sides); break;
+            default: self.geometry = new THREE.BoxGeometry(3, 3, 3);
+          }
+
+          const mat = (self.currentType === 'cuboid' || self.currentType === 'cube') ? self.boxMaterials : new THREE.MeshLambertMaterial({ color: 0x3498db });
+          self.mesh = new THREE.Mesh(self.geometry, mat);
+          self.scene.add(self.mesh);
+
+          if (self.options.showEdges) {
+            self.edges = new THREE.EdgesGeometry(self.geometry, 15);
+            self.edgeLines = new THREE.LineSegments(self.edges, new THREE.LineBasicMaterial({ color: 0x333333 }));
+            self.scene.add(self.edgeLines);
+          }
+        };
+        createGeometry();
+
+  // Animation loop
+        let animId;
+        const animate = () => {
+          animId = requestAnimationFrame(animate);
+          if (self.options.autoRotate && self.mesh) {
+            self.mesh.rotation.y += 0.005;
+            if (self.edgeLines) self.edgeLines.rotation.y += 0.005;
+          }
+          self.renderer.render(self.scene, self.camera);
+        };
+        animate();
+
+  // Return controller
+        return {
+          updateParams(newParams) {
+            self.currentParams = { ...self.currentParams, ...newParams };
+            createGeometry();
+          },
+          setType(newType, newParams) {
+            self.currentType = newType;
+            self.currentParams = newParams || { ...Geometry3DHelper.TYPES[newType] };
+            createGeometry();
+          },
+          isCube() {
+            if (self.currentType === 'cube') return true;
+            if (self.currentType === 'cuboid') {
+              const { l, w, h } = self.currentParams;
+              return l === w && w === h;
+            }
+            return false;
+          },
+          dispose() {
+            cancelAnimationFrame(animId);
+            if (self.geometry) self.geometry.dispose();
+            if (self.edges) self.edges.dispose();
+            self.boxMaterials.forEach(m => m.dispose());
+            self.renderer.dispose();
+            const canvas = self.renderer.domElement;
+            if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+          }
+        };
+      }
+    };
+
+    // ========== Area for LLM-generated code ==========
+    window.HOME_PAGE = {
+      template: `
+    <style>
+      /* Global reset and fonts */
+      .hp-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        font-family: "Microsoft YaHei", "Heiti SC", sans-serif;
+        background: url('./assets/background.png') center center / cover no-repeat;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #333;
+      }
+
+  /* Overlay layer to improve text readability */
+      .hp-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(2px);
+        z-index: 0;
+      }
+
+  /* Content area */
+      .hp-content {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 1600px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+  /* Title styles */
+      .hp-header {
+        text-align: center;
+        margin-bottom: 60px;
+        animation: slideDown 0.8s ease-out;
+      }
+
+      .hp-title {
+        font-size: 84px;
+        font-weight: 800;
+        margin: 0;
+        background: linear-gradient(to right, #FF512F, #DD2476);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        letter-spacing: 4px;
+      }
+
+      .hp-subtitle {
+        font-size: 32px;
+        color: #555;
+        background-color: rgba(255,255,255,0.8);
+        padding: 5px 20px;
+        border-radius: 20px;
+        margin-top: 10px;
+        font-weight: bold;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      }
+
+  /* Cards container */
+      .hp-cards-wrapper {
+        display: flex;
+        gap: 40px;
+        justify-content: center;
+        width: 100%;
+        padding: 0 20px;
+      }
+
+  /* Individual card styles */
+      .hp-card {
+        width: 380px;
+        height: 450px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 24px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        border: 4px solid transparent;
+        animation: fadeInUp 0.8s ease-out backwards;
+      }
+
+  /* Card hover effect */
+      .hp-card:hover {
+        transform: translateY(-15px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        background: #fff;
+        border-color: #FF9A9E;
+      }
+
+  /* Card icon area */
+      .hp-card-icon {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 60px;
+        margin-bottom: 30px;
+        background: #f0f4f8;
+        transition: transform 0.3s;
+      }
+      
+      .hp-card:hover .hp-card-icon {
+        transform: rotate(10deg) scale(1.1);
+      }
+
+      .hp-card-title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 15px;
+      }
+
+      .hp-card-desc {
+        font-size: 18px;
+        color: #666;
+        line-height: 1.6;
+        flex-grow: 1;
+      }
+
+      .hp-card-btn {
+        margin-top: 20px;
+        padding: 12px 40px;
+        background: linear-gradient(90deg, #FF9A9E 0%, #FECFEF 100%);
+        border: none;
+        border-radius: 50px;
+        color: white;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4);
+      }
+
+  /* Animation definitions */
+      @keyframes slideDown {
+        from { transform: translateY(-50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+
+      @keyframes fadeInUp {
+        from { transform: translateY(50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    </style>
+
+    <div class="hp-container">
+      <div class="hp-overlay"></div>
+      <div class="hp-content">
+        <div class="hp-header">
+          <h1 class="hp-title">Little Banker</h1>
+          <div class="hp-subtitle">A Wonderful Journey with RMB</div>
+        </div>
+        
+        <div class="hp-cards-wrapper" id="activity-cards-container">
+          <!-- Cards are generated dynamically by JS -->
+        </div>
+      </div>
+    </div>
+  `,
+
+      init() {
+        // 1) Render base template
+        document.getElementById('home-page').innerHTML = this.template;
+
+        // 2) Define activity data
+        const activities = [
+          {
+            id: 1,
+            title: "Coin & Bill Sorter",
+            description: "Different RMB denominations appear at the bottom. Drag them into the correct piggy bank: yuan, jiao, or fen.",
+            icon: "🐷", // Emoji icon
+            bgGradient: "linear-gradient(135deg, #f6d365 0%, #fda085 100%)",
+            btnColor: "linear-gradient(90deg, #f6d365 0%, #fda085 100%)"
+          },
+          {
+            id: 2,
+            title: "I’m a Cash Counter",
+            description: "A target amount is shown at the top. Choose the correct group out of three different money combinations.",
+            icon: "🧐",
+            bgGradient: "linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)",
+            btnColor: "linear-gradient(90deg, #84fab0 0%, #8fd3f4 100%)"
+          },
+          {
+            id: 3,
+            title: "Supermarket Shopping",
+            description: "Items have price tags on the shelf. Drag the right amount of money from your wallet to the checkout to pay.",
+            icon: "🛒",
+            bgGradient: "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
+            btnColor: "linear-gradient(90deg, #a18cd1 0%, #fbc2eb 100%)"
+          }
+        ];
+
+        const container = document.getElementById('activity-cards-container');
+
+  // 3) Generate cards dynamically and bind events
+        activities.forEach((act, index) => {
+          const card = document.createElement('div');
+          card.className = 'hp-card';
+          // Set animation delay for a staggered entrance effect
+          card.style.animationDelay = `${index * 0.15 + 0.3}s`;
+
+          card.innerHTML = `
+        <div class="hp-card-icon" style="background: ${act.bgGradient}; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+          ${act.icon}
+        </div>
+        <div class="hp-card-title">${act.title}</div>
+        <div class="hp-card-desc">${act.description}</div>
+  <div class="hp-card-btn" style="background: ${act.btnColor}">Start</div>
+      `;
+
+          // Bind click event and call ActivityManager directly
+          card.addEventListener('click', () => {
+            // Add click feedback animation (optional)
+            card.style.transform = "scale(0.95)";
+            setTimeout(() => {
+              ActivityManager.show(act.id);
+            }, 100);
+          });
+
+          container.appendChild(card);
+        });
+      }
+    };
+    window.ACTIVITY_1 = {
+      config: {
+        totalQuestions: 10,
+        assets: {
+          bin_yuan: "./assets/bin_yuan.png",
+          bin_jiao: "./assets/bin_jiao.png",
+          bin_fen: "./assets/bin_fen.png"
+        },
+        questions: [
+          {
+            id: "q1", item: "1 yuan coin", value: 1, unit: "yuan",
+            img: "./assets/item_1_1元硬币.png"
+          },
+          {
+            id: "q2", item: "5 jiao coin", value: 5, unit: "jiao",
+            img: "./assets/item_2_5角硬币.png"
+          },
+          {
+            id: "q3", item: "1 fen coin", value: 1, unit: "fen",
+            img: "./assets/item_3_1分硬币.png"
+          },
+          {
+            id: "q4", item: "10 yuan banknote", value: 10, unit: "yuan",
+            img: "./assets/item_4_10元纸币.png"
+          },
+          {
+            id: "q5", item: "1 jiao coin", value: 1, unit: "jiao",
+            img: "./assets/item_5_1角硬币.png"
+          },
+          {
+            id: "q6", item: "20 yuan banknote", value: 20, unit: "yuan",
+            img: "./assets/item_6_20元纸币.png"
+          },
+          {
+            id: "q7", item: "5 fen coin", value: 5, unit: "fen",
+            img: "./assets/item_7_5分硬币.png"
+          },
+          {
+            id: "q8", item: "50 yuan banknote", value: 50, unit: "yuan",
+            img: "./assets/item_8_50元纸币.png"
+          },
+          {
+            id: "q9", item: "100 yuan banknote", value: 100, unit: "yuan",
+            img: "./assets/item_9_100元纸币.png"
+          },
+          {
+            id: "q10", item: "5 yuan banknote", value: 5, unit: "yuan",
+            img: "./assets/item_10_5元纸币.png"
+          }
+        ]
+      },
+
+      state: {
+        currentQuestionIndex: 0,
+        isAnimating: false,
+        dragInstance: null
+      },
+
+      template: `
+    ${createActivityHeader('Coin & Bill Sorter', '1/10')}
+    
+    <style>
+      #activity-1 {
+        width: 100%;
+        height: 100%;
+        background-color: #f0f8ff;
+        overflow: hidden;
+        position: relative;
+        font-family: 'Comic Sans MS', 'Microsoft YaHei', sans-serif;
+      }
+
+  /* Layout area */
+      .activity-content {
+        position: absolute;
+        top: 80px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 50px;
+      }
+
+  /* Question display area */
+      .question-area {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        position: relative;
+      }
+
+  /* Currency image */
+      .currency-item {
+        width: 280px;
+        height: auto;
+        cursor: grab;
+        transition: transform 0.2s, filter 0.2s;
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        z-index: 20; /* item layer */
+        user-select: none;
+      }
+      
+      .currency-item:active {
+        cursor: grabbing;
+        transform: scale(1.1);
+        filter: brightness(1.1) drop-shadow(0 10px 15px rgba(0,0,0,0.3));
+        z-index: 100; /* highest level while dragging */
+      }
+
+      /* Piggy bank area */
+      .bins-container {
+        display: flex;
+        justify-content: space-around;
+        align-items: flex-end;
+        width: 90%;
+        max-width: 1400px;
+        height: 350px;
+        position: relative;
+      }
+
+      .bin-wrapper {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: transform 0.3s ease;
+      }
+
+      .bin-wrapper img {
+        width: 220px;
+        height: auto;
+        z-index: 15; /* drop-zone layer, must be above normal components */
+        transition: all 0.3s ease;
+      }
+
+      .bin-label {
+        margin-top: 15px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #333;
+        background: rgba(255,255,255,0.9);
+        padding: 5px 20px;
+        border-radius: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      }
+
+  /* Drag highlight effects */
+      .bin-wrapper.drag-over img,
+      .bin-wrapper.tge-drag-over img {
+        transform: scale(1.15);
+        filter: brightness(1.2);
+      }
+      .bin-wrapper.drag-over::after,
+      .bin-wrapper.tge-drag-over::after {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: -10px;
+        right: -10px;
+        bottom: -10px;
+        border: 4px dashed #FFD700;
+        border-radius: 20px;
+        animation: pulseBorder 1s infinite;
+        z-index: 14;
+      }
+
+      @keyframes pulseBorder {
+        0% { border-color: #FFD700; opacity: 1; }
+        50% { border-color: #FFA500; opacity: 0.6; }
+        100% { border-color: #FFD700; opacity: 1; }
+      }
+
+  /* Result modal */
+      .result-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 200;
+        display: none;
+      }
+      
+      .result-card {
+        background: white;
+        padding: 40px 80px;
+        border-radius: 20px;
+        text-align: center;
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      .restart-btn {
+        margin-top: 20px;
+        padding: 15px 40px;
+        font-size: 24px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+      .restart-btn:hover { transform: scale(1.05); }
+
+      @keyframes popIn {
+        from { transform: scale(0.5); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+    </style>
+
+    <div class="activity-content">
+      <div class="question-area">
+        <div id="start-pos-1">
+          <!-- Currency will be generated here dynamically -->
+          <img id="current-item-1" class="currency-item" src="" draggable="false">
+        </div>
+      </div>
+
+      <div class="bins-container">
+        <!-- Red piggy bank: yuan -->
+        <div class="bin-wrapper" id="target-yuan" data-unit="yuan">
+          <img src="./assets/bin_yuan.png" alt="Yuan">
+          <div class="bin-label" style="color: #E53935;">Yuan</div>
+        </div>
+
+        <!-- Blue piggy bank: jiao -->
+        <div class="bin-wrapper" id="target-jiao" data-unit="jiao">
+          <img src="./assets/bin_jiao.png" alt="Jiao">
+          <div class="bin-label" style="color: #1E88E5;">Jiao</div>
+        </div>
+
+        <!-- Green piggy bank: fen -->
+        <div class="bin-wrapper" id="target-fen" data-unit="fen">
+          <img src="./assets/bin_fen.png" alt="Fen">
+          <div class="bin-label" style="color: #43A047;">Fen</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result page -->
+    <div id="result-overlay-1" class="result-overlay">
+      <div class="result-card">
+        <h1>🎉 Challenge complete!</h1>
+        <p style="font-size: 24px; color: #666;">You’ve learned how to sort RMB by unit!</p>
+        <button class="restart-btn" onclick="window.ACTIVITY_1.restart()">Play again</button>
+      </div>
+    </div>
+  `,
+
+      init() {
+        // 1. Render template
+        document.getElementById('activity-1').innerHTML = this.template;
+
+        // 2. Initialize the first question (this will also set up drag & drop)
+        this.loadQuestion();
+      },
+
+      loadQuestion() {
+        const index = this.state.currentQuestionIndex;
+        if (index >= this.config.questions.length) {
+          this.showResult();
+          return;
+        }
+
+        const question = this.config.questions[index];
+        // const itemEl = document.getElementById('current-item-1'); // This line is no longer needed
+
+        // Update progress
+        const headerProgress = document.querySelector('#activity-1 .progress');
+        if (headerProgress) headerProgress.innerText = `${index + 1}/${this.config.questions.length}`;
+
+        // Reset item state by recreating DOM to clear drag listeners/state
+        const startPos = document.getElementById('start-pos-1');
+        startPos.innerHTML = `<img id="current-item-1" class="currency-item" src="${question.img}" draggable="false" data-unit="${question.unit}">`;
+
+        // Re-create the drag instance
+        this.setupDragDrop();
+      },
+
+      setupDragDrop() {
+        const itemEl = document.getElementById('current-item-1');
+        const bins = [
+          document.getElementById('target-yuan'),
+          document.getElementById('target-jiao'),
+          document.getElementById('target-fen')
+        ];
+
+        // Use the main gameEngine's robust draggable implementation
+        window.gameEngine.makeDraggable(itemEl, {
+          revert: true,
+          targetGroup: 'sorting',
+          zIndex: 100
+        });
+
+        // Register drop zones
+        bins.forEach(bin => {
+          window.gameEngine.makeDropZone(bin, { group: 'sorting' });
+        });
+
+        // Listen to global engine events for this activity
+        if (!this._hasBoundEngineEvents) {
+          this._hasBoundEngineEvents = true;
+
+          window.gameEngine.on('dragStart', ({ element }) => {
+            if (element.id !== 'current-item-1') return;
+            gameEngine.playSound('click');
+            element.style.zIndex = 100;
+          });
+
+          window.gameEngine.on('drop', ({ source, target }) => {
+            if (source.id !== 'current-item-1') return;
+            this.checkAnswer(target, source);
+          });
+
+          // Note: 'dragOver' interaction is handled by CSS .tge-drag-over class added by engine
+        }
+      },
+
+      isOverlapping(rect1, rect2) {
+        // Simple rectangle overlap check with a bit of tolerance (center-point check)
+        const center1X = rect1.left + rect1.width / 2;
+        const center1Y = rect1.top + rect1.height / 2;
+
+        return center1X > rect2.left && center1X < rect2.right &&
+          center1Y > rect2.top && center1Y < rect2.bottom;
+      },
+
+      checkAnswer(binEl, itemEl) {
+        if (this.state.isAnimating) return;
+
+        const targetUnit = binEl.dataset.unit;
+        const itemUnit = itemEl.dataset.unit;
+
+        if (targetUnit === itemUnit) {
+          // Correct
+          this.handleCorrect(binEl, itemEl);
+        } else {
+          // Wrong
+          this.handleWrong(binEl, itemEl);
+        }
+      },
+
+      handleCorrect(binEl, itemEl) {
+        this.state.isAnimating = true;
+        gameEngine.playSound('success');
+
+  // 1. Fly-in animation
+        const itemRect = itemEl.getBoundingClientRect();
+  const binRect = binEl.querySelector('img').getBoundingClientRect(); // fly toward the image center
+
+  // Create a clone for animation
+        const clone = itemEl.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = itemRect.left + 'px';
+        clone.style.top = itemRect.top + 'px';
+        clone.style.width = itemRect.width + 'px';
+        clone.style.height = itemRect.height + 'px';
+        clone.style.zIndex = 1000;
+        clone.style.transition = 'all 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
+        clone.style.pointerEvents = 'none'; // let events pass through
+        document.body.appendChild(clone);
+
+        // Hide the original element
+        itemEl.style.visibility = 'hidden';
+
+        // Run the animation
+        requestAnimationFrame(() => {
+          // Compute target position (piggy bank center)
+          const targetX = binRect.left + binRect.width / 2 - itemRect.width / 2;
+          const targetY = binRect.top + binRect.height / 2 - itemRect.height / 2;
+
+          clone.style.left = targetX + 'px';
+          clone.style.top = targetY + 'px';
+          clone.style.transform = 'scale(0.3) rotate(360deg)';
+          clone.style.opacity = '0';
+        });
+
+  // Clean up after the animation
+        setTimeout(() => {
+          clone.remove();
+          this.state.currentQuestionIndex++;
+          this.state.isAnimating = false; // Reset lock
+          setTimeout(() => this.loadQuestion(), 500);
+        }, 600);
+      },
+
+      handleWrong(binEl, itemEl) {
+        gameEngine.playSound('error');
+        gameEngine.showFeedback(binEl, 'shake');
+        this.returnToStart(itemEl);
+      },
+
+      returnToStart(itemEl) {
+        // Reset using TeachingGameEngine mechanisms or CSS transition
+        itemEl.style.transition = 'transform 0.5s ease-out';
+        itemEl.style.transform = 'translate(0, 0)';
+        // Note: draggable libs typically move via translate; clearing transform resets it
+
+        // Clear inline transition so it doesn't affect the next drag
+        setTimeout(() => {
+          itemEl.style.transition = '';
+        }, 500);
+      },
+
+      showResult() {
+        const overlay = document.getElementById('result-overlay-1');
+        overlay.style.display = 'flex';
+        gameEngine.playSound('success'); // ending sound
+      },
+
+      restart() {
+        this.state.currentQuestionIndex = 0;
+        document.getElementById('result-overlay-1').style.display = 'none';
+        this.loadQuestion();
+      },
+
+      destroy() {
+        if (this.state.dragInstance) {
+          this.state.dragInstance.destroy();
+        }
+        // Remove global listeners / leftover nodes
+        document.body.querySelectorAll('.flying-item-clone').forEach(el => el.remove());
+      }
+    };
+    window.ACTIVITY_2 = {
+      config: {
+        totalQuestions: 10,
+        questionType: "random",
+        assets: {
+          bill_5_yuan: "./assets/bill_5_yuan_purple.png",
+          bill_1_yuan: "./assets/bill_1_yuan_green.png",
+          coin_1_yuan: "./assets/coin_1_yuan.png",
+          coin_5_jiao: "./assets/coin_5_jiao.png",
+          coin_1_jiao: "./assets/coin_1_jiao.png",
+          icon_correct: "./assets/icon_feedback_correct.png",
+          icon_wrong: "./assets/icon_feedback_wrong.png"
+        }
+      },
+
+      template: `
+    ${createActivityHeader("I'm a Cash Counter", '1/10')}
+    <style>
+      #activity-2 {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background-color: #d0e8f7;
+        font-family: "Microsoft YaHei", sans-serif;
+        overflow: hidden;
+      }
+      
+  /* Layout */
+      #activity-2 .activity-content {
+        position: absolute;
+        top: 80px;
+        bottom: 80px;
+        left: 0;
+        right: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* 目标金额显示 */
+      #activity-2 .target-display {
+        margin-bottom: 40px;
+        padding: 15px 40px;
+        background: #fff;
+        border-radius: 50px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        text-align: center;
+      }
+
+      #activity-2 .target-amount {
+        font-size: 64px;
+        color: #0d47a1;
+        font-weight: bold;
+        line-height: 1.2;
+      }
+
+      /* 选项容器 */
+      #activity-2 .options-container {
+        display: flex;
+        gap: 60px;
+        justify-content: center;
+        align-items: stretch;
+        width: 90%;
+      }
+
+      /* 托盘样式 */
+      #activity-2 .tray-option {
+        position: relative;
+        flex: 1;
+        max-width: 400px;
+        min-height: 300px;
+        background: rgba(255, 255, 255, 0.6);
+        border: 4px solid #fff;
+        border-radius: 20px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      }
+
+      #activity-2 .tray-option:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        background: rgba(255, 255, 255, 0.9);
+        border-color: #2196F3;
+      }
+
+      #activity-2 .tray-option.disabled {
+        pointer-events: none;
+      }
+
+      #activity-2 .tray-option.correct {
+        border-color: #4CAF50;
+        background-color: #E8F5E9;
+      }
+
+      #activity-2 .tray-option.wrong {
+        border-color: #F44336;
+        background-color: #FFEBEE;
+      }
+
+      /* 钱币元素 */
+      #activity-2 .money-img {
+        height: 70px; /* 默认高度 */
+        object-fit: contain;
+        filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));
+        transition: transform 0.2s;
+      }
+      
+      #activity-2 .money-img.bill {
+        height: 85px; /* 纸币稍微大一点 */
+      }
+      
+      #activity-2 .money-img:hover {
+        transform: scale(1.1);
+        z-index: 5;
+      }
+
+      /* 反馈图标 */
+      #activity-2 .feedback-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        width: 120px;
+        height: 120px;
+        z-index: 100;
+        pointer-events: none;
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      #activity-2 .tray-option.correct .feedback-icon,
+      #activity-2 .tray-option.wrong .feedback-icon {
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      /* 底部按钮 */
+      #activity-2 .activity-footer {
+        position: absolute;
+        bottom: 30px;
+        right: 40px;
+        z-index: 200;
+      }
+
+      #next-btn-2 {
+        padding: 15px 40px;
+        font-size: 24px;
+        background: #2196F3;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        display: none; /* 初始隐藏 */
+        font-weight: bold;
+        transition: background 0.2s;
+      }
+      
+      #next-btn-2:hover {
+        background: #1976D2;
+      }
+
+      /* 结果页 */
+      #activity-2 .result-screen {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255,255,255,0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        font-size: 40px;
+        color: #333;
+      }
+    </style>
+
+    <div class="activity-content">
+      <div class="target-display">
+        <div class="target-amount" id="target-text-2">Loading...</div>
+      </div>
+
+      <div class="options-container" id="options-container-2">
+        <!-- 选项将通过JS注入 -->
+      </div>
+    </div>
+
+    <div class="activity-footer">
+      <button class="next-btn" id="next-btn-2">Next</button>
+    </div>
+    
+    <div id="result-layer-2" style="display:none;"></div>
+  `,
+
+      state: {
+        currentQuestion: 0,
+        score: 0,
+        isAnswering: false,
+        currentQuestionData: null
+      },
+
+      init() {
+        // 1. 渲染模板
+        const container = document.getElementById('activity-2');
+        container.innerHTML = this.template;
+
+        // 2. 绑定事件
+        document.getElementById('next-btn-2').addEventListener('click', () => {
+          this.nextQuestion();
+        });
+
+        // 3. 开始活动
+        this.state.currentQuestion = 0;
+        this.state.score = 0;
+        this.loadQuestion();
+      },
+
+      loadQuestion() {
+        // 更新进度条
+        const progressText = `${this.state.currentQuestion + 1}/${this.config.totalQuestions}`;
+        const headerProgress = document.querySelector('#activity-2 .progress');
+        if (headerProgress) headerProgress.innerText = progressText;
+
+        // 生成题目数据
+        this.state.currentQuestionData = this.generateQuestion(this.state.currentQuestion);
+
+        // 渲染题目
+        this.renderQuestion();
+
+        // 重置状态
+        this.state.isAnswering = true;
+        document.getElementById('next-btn-2').style.display = 'none';
+      },
+
+      generateQuestion(index) {
+        // 随机生成金额
+        // 元: 0-5, 角: 0-9
+        const yuan = Math.floor(Math.random() * 6); // 0-5
+        const jiao = Math.floor(Math.random() * 10); // 0-9
+
+        // 避免0元0角
+        if (yuan === 0 && jiao === 0) return this.generateQuestion(index);
+
+        const totalJiao = yuan * 10 + jiao;
+
+        // 构建正确选项
+        const correctOption = {
+          value: totalJiao,
+          items: this.getMoneyItems(totalJiao)
+        };
+
+        // 构建错误选项 (生成2个)
+        const options = [correctOption];
+        while (options.length < 3) {
+          // 干扰项逻辑：总额接近但不同
+          let offset = Math.floor(Math.random() * 5) + 1; // 1-5角偏差
+          offset = Math.random() > 0.5 ? offset : -offset;
+
+          let wrongValue = totalJiao + offset;
+
+          // 边界检查
+          if (wrongValue <= 0) wrongValue = totalJiao + 2;
+          if (wrongValue === totalJiao) wrongValue = totalJiao + 1; // 防止意外重复
+
+          // 检查是否已存在该金额的选项
+          const exists = options.some(opt => opt.value === wrongValue);
+          if (!exists) {
+            options.push({
+              value: wrongValue,
+              items: this.getMoneyItems(wrongValue)
+            });
+          }
+        }
+
+        // 打乱选项顺序
+        options.sort(() => Math.random() - 0.5);
+
+        // 构造文字描述
+        let text = "";
+        if (yuan > 0) text += `${yuan}yuan`;
+        if (jiao > 0) text += `${jiao}jiao`;
+        // if (yuan > 0 && jiao === 0) text += "整";
+
+        return {
+          text: text,
+          targetValue: totalJiao,
+          options: options,
+          correctIndex: options.findIndex(o => o.value === totalJiao)
+        };
+      },
+
+      // 辅助：根据总金额(角)返回钱币图片列表
+      getMoneyItems(totalJiao) {
+        const items = [];
+        let remaining = totalJiao;
+
+        // 5元 (50角)
+        const count5Yuan = Math.floor(remaining / 50);
+        for (let i = 0; i < count5Yuan; i++) items.push({ type: 'bill', src: this.config.assets.bill_5_yuan });
+        remaining %= 50;
+
+        // 1元 (10角)
+        const count1Yuan = Math.floor(remaining / 10);
+        for (let i = 0; i < count1Yuan; i++) {
+          // 随机使用纸币或硬币
+          const useCoin = Math.random() > 0.5;
+          items.push({
+            type: useCoin ? 'coin' : 'bill',
+            src: useCoin ? this.config.assets.coin_1_yuan : this.config.assets.bill_1_yuan
+          });
+        }
+        remaining %= 10;
+
+        // 5角 (5角)
+        const count5Jiao = Math.floor(remaining / 5);
+        for (let i = 0; i < count5Jiao; i++) items.push({ type: 'coin', src: this.config.assets.coin_5_jiao });
+        remaining %= 5;
+
+        // 1角 (1角)
+        for (let i = 0; i < remaining; i++) items.push({ type: 'coin', src: this.config.assets.coin_1_jiao });
+
+        return items;
+      },
+
+      renderQuestion() {
+        const data = this.state.currentQuestionData;
+
+        // 设置目标文本
+        document.getElementById('target-text-2').innerText = data.text;
+
+        // 生成选项HTML
+        const container = document.getElementById('options-container-2');
+        container.innerHTML = '';
+
+        data.options.forEach((opt, idx) => {
+          const tray = document.createElement('div');
+          tray.className = 'tray-option';
+          tray.dataset.index = idx;
+
+          // 填充钱币图片
+          opt.items.forEach(item => {
+            const img = document.createElement('img');
+            img.src = item.src;
+            img.className = `money-img ${item.type}`;
+            tray.appendChild(img);
+          });
+
+          // 添加反馈图标占位
+          const feedbackIcon = document.createElement('img');
+          feedbackIcon.className = 'feedback-icon';
+          feedbackIcon.style.display = 'none'; // 初始隐藏
+          tray.appendChild(feedbackIcon);
+
+          // 绑定点击
+          tray.onclick = () => this.checkAnswer(idx, tray, feedbackIcon);
+
+          container.appendChild(tray);
+        });
+      },
+
+      checkAnswer(selectedIndex, trayElement, feedbackIconEl) {
+        if (!this.state.isAnswering) return;
+        this.state.isAnswering = false;
+
+        const isCorrect = selectedIndex === this.state.currentQuestionData.correctIndex;
+
+        // 禁用所有选项点击
+        const allTrays = document.querySelectorAll('#activity-2 .tray-option');
+        allTrays.forEach(t => t.classList.add('disabled'));
+
+        if (isCorrect) {
+          // 正确处理
+          gameEngine.playSound('success');
+          this.state.score++;
+
+          trayElement.classList.add('correct');
+          feedbackIconEl.src = this.config.assets.icon_correct;
+          feedbackIconEl.style.display = 'block';
+
+          // 动画反馈
+          gameEngine.showFeedback(trayElement, 'pulse');
+        } else {
+          // 错误处理
+          gameEngine.playSound('error');
+
+          trayElement.classList.add('wrong');
+          feedbackIconEl.src = this.config.assets.icon_wrong;
+          feedbackIconEl.style.display = 'block';
+          gameEngine.showFeedback(trayElement, 'shake');
+
+          // 显示正确答案
+          setTimeout(() => {
+            const correctIndex = this.state.currentQuestionData.correctIndex;
+            const correctTray = allTrays[correctIndex];
+            correctTray.classList.add('correct');
+            // 也可以在这里给正确答案加个图标提示
+          }, 500);
+        }
+
+        // 显示下一题按钮
+        document.getElementById('next-btn-2').style.display = 'block';
+      },
+
+      nextQuestion() {
+        if (this.state.currentQuestion < this.config.totalQuestions - 1) {
+          this.state.currentQuestion++;
+          this.loadQuestion();
+        } else {
+          this.showResult();
+        }
+      },
+
+      showResult() {
+        const resultLayer = document.getElementById('result-layer-2');
+        resultLayer.style.display = 'flex';
+        resultLayer.innerHTML = `
+      <div class="result-screen">
+        <h2>挑战完成！</h2>
+        <p>得分：${this.state.score} / ${this.config.totalQuestions}</p>
+        <button onclick="window.ACTIVITY_2.init()" style="margin-top:20px; padding:10px 30px; font-size:20px;">再玩一次</button>
+        <button onclick="ActivityManager.goHome()" style="margin-top:10px; padding:10px 30px; font-size:20px;">返回主页</button>
+      </div>
+    `;
+        gameEngine.playSound('success');
+      },
+
+      destroy() {
+        // 清理工作，移除事件监听等
+        // 由于DOM是覆盖式更新，这里主要清理可能的定时器或全局事件
+        this.state.currentQuestionData = null;
+      }
+    };
+    window.ACTIVITY_3 = {
+      config: {
+        totalQuestions: 10,
+        assets: {
+          asset_price_tag: "./assets/asset_price_tag.png",
+          money_coin_1yuan: "./assets/money_coin_1yuan.png",
+          asset_wooden_shelf_display: "./assets/asset_wooden_shelf_display.png",
+          asset_counter_surface: "./assets/asset_counter_surface.png",
+          money_coin_5jiao: "./assets/money_coin_5jiao.png",
+          asset_wallet_tray: "./assets/asset_wallet_tray.png",
+          money_coin_1jiao: "./assets/money_coin_1jiao.png",
+          background: "./assets/background (1).png",
+          btn_submit_pay: "./assets/btn_submit_pay.png",
+          money_note_1yuan: "./assets/money_note_1yuan.png",
+          money_note_10yuan: "./assets/money_note_10yuan.png",
+          money_note_20yuan: "./assets/money_note_20yuan.png",
+          money_note_5yuan: "./assets/money_note_5yuan.png",
+          item_1: "./assets/item_1_橡皮.png",
+          item_2: "./assets/item_2_棒棒糖.png",
+          item_3: "./assets/item_3_练习本.png",
+          item_4: "./assets/item_4_矿泉水.png",
+          item_5: "./assets/item_5_铅笔.png",
+          item_6: "./assets/item_6_雪糕.png",
+          item_7: "./assets/item_7_牙膏.png",
+          item_8: "./assets/item_8_玩具车.png",
+          item_9: "./assets/item_9_彩笔.png",
+          item_10: "./assets/item_10_布娃娃.png"
+        },
+        questions: [
+          { id: "p1", name: "eraser", price_text: "5 jiao", price_val: 0.5, imgKey: "item_1" },
+          { id: "p2", name: "lollipop", price_text: "8 jiao", price_val: 0.8, imgKey: "item_2" },
+          { id: "p3", name: "notebook", price_text: "1 yuan", price_val: 1.0, imgKey: "item_3" },
+          { id: "p4", name: "mineral water", price_text: "2 yuan", price_val: 2.0, imgKey: "item_4" },
+          { id: "p5", name: "pencil", price_text: "1 yuan 2 jiao", price_val: 1.2, imgKey: "item_5" },
+          { id: "p6", name: "ice cream", price_text: "3 yuan 5 jiao", price_val: 3.5, imgKey: "item_6" },
+          { id: "p7", name: "toothpaste", price_text: "6 yuan", price_val: 6.0, imgKey: "item_7" },
+          { id: "p8", name: "toy car", price_text: "12 yuan", price_val: 12.0, imgKey: "item_8" },
+          { id: "p9", name: "colored pens", price_text: "8 yuan 5 jiao", price_val: 8.5, imgKey: "item_9" },
+          { id: "p10", name: "doll", price_text: "20 yuan", price_val: 20.0, imgKey: "item_10" }
+        ],
+        moneyTypes: [
+          { val: 0.1, img: "money_coin_1jiao", type: "coin" },
+          { val: 0.5, img: "money_coin_5jiao", type: "coin" },
+          { val: 1.0, img: "money_coin_1yuan", type: "coin" },
+          { val: 1.0, img: "money_note_1yuan", type: "note" },
+          { val: 5.0, img: "money_note_5yuan", type: "note" },
+          { val: 10.0, img: "money_note_10yuan", type: "note" },
+          { val: 20.0, img: "money_note_20yuan", type: "note" }
+        ]
+      },
+
+      state: {
+        currentIndex: 0,
+        currentPaid: 0,
+        paidItems: [] // stores {val, img} of items on counter
+      },
+
+      template: `
+    <style>
+      #activity-3 {
+        width: 1920px;
+        height: 1080px;
+        background-image: url('./assets/background (1).png');
+        background-size: cover;
+        position: relative;
+        overflow: hidden;
+        font-family: 'Comic Sans MS', 'Microsoft YaHei', cursive;
+        user-select: none;
+      }
+      
+      /* Common */
+      .abs { position: absolute; }
+      .flex-center { display: flex; justify-content: center; align-items: center; }
+      
+      /* Shelf Area */
+      .shelf-container {
+        left: 200px;
+        top: 200px;
+        width: 400px;
+        height: 500px;
+      }
+      .shelf-bg {
+        width: 100%;
+        height: auto;
+      }
+      .product-img {
+        left: 50px;
+        top: 80px;
+        width: 300px;
+        height: 300px;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 10px rgba(0,0,0,0.2));
+      }
+      .price-tag-container {
+        left: 200px;
+        top: 350px;
+        width: 180px;
+        height: 100px;
+        transform: rotate(-10deg);
+      }
+      .price-bg {
+        width: 100%;
+        height: 100%;
+      }
+      .price-text {
+        width: 100%;
+        height: 100%;
+        top: 0; left: 0;
+        font-size: 40px;
+        color: #5D4037;
+        font-weight: bold;
+        text-align: center;
+        line-height: 90px;
+        text-shadow: 2px 2px 0px rgba(255,255,255,0.5);
+      }
+
+      /* Counter Area */
+      .counter-container {
+        right: 150px;
+        top: 250px;
+        width: 800px;
+        height: 450px;
+        z-index: 15; /* Defined in rules */
+      }
+      .counter-surface {
+        width: 100%;
+        height: 100%;
+        background-image: url('./assets/asset_counter_surface.png');
+        background-size: 100% 100%;
+        transition: filter 0.3s;
+      }
+      .counter-surface.highlight {
+        filter: brightness(1.2) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
+      }
+      
+      /* Paid Items on Counter */
+      .paid-area {
+        top: 50px;
+        left: 100px;
+        width: 600px;
+        height: 350px;
+        display: flex;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        gap: 10px;
+        padding: 20px;
+        box-sizing: border-box;
+        z-index: 20; /* Ensure clickable */
+        pointer-events: auto;
+      }
+      .paid-item {
+        cursor: pointer;
+        transition: transform 0.2s;
+        filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));
+      }
+      .paid-item:hover {
+        transform: scale(1.1) rotate(5deg);
+      }
+      .paid-item.coin { width: 80px; height: 80px; }
+      .paid-item.note { width: 140px; height: 75px; }
+
+      .total-display {
+        top: -60px;
+        right: 0;
+        background: rgba(255,255,255,0.9);
+        border: 4px solid #8D6E63;
+        border-radius: 15px;
+        padding: 10px 30px;
+        font-size: 36px;
+        color: #E65100;
+        font-weight: bold;
+        display: none; /* Show only when money > 0 */
+      }
+
+      /* Wallet Area */
+      .wallet-container {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 1600px;
+        height: 250px;
+        background-image: url('./assets/wallet_tray.png');
+        background-size: 100% 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 30px;
+        padding: 0 40px;
+        box-sizing: border-box;
+        z-index: 20;
+      }
+      .money-source {
+        cursor: grab;
+        transition: transform 0.2s;
+        position: relative;
+      }
+      .money-source:active { cursor: grabbing; }
+      .money-source:hover { transform: scale(1.1); }
+      .money-source.coin { width: 100px; height: 100px; }
+      .money-source.note { width: 180px; height: 100px; }
+      .money-source img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+      }
+
+      /* Buttons */
+      .submit-btn {
+        position: absolute;
+        right: 50px;
+        bottom: 300px;
+        width: 150px;
+        height: 150px;
+        background-image: url('./assets/btn_submit_pay.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        border: none;
+        background-color: transparent;
+        cursor: pointer;
+        transition: transform 0.2s;
+        z-index: 30;
+      }
+      .submit-btn:hover { transform: scale(1.1); }
+      .submit-btn:active { transform: scale(0.95); }
+
+      /* Draggable Clone Style */
+      .draggable-clone {
+        position: fixed;
+        z-index: 100;
+        pointer-events: none;
+        opacity: 0.9;
+        transform: scale(1.1);
+      }
+    </style>
+
+    ${createActivityHeader('Big Grocery Shopping Trip', '1/10')}
+
+    <div class="activity-content">
+      <!-- Shelf Area -->
+      <div class="abs shelf-container">
+        <img class="shelf-bg" src="./assets/asset_wooden_shelf_display.png">
+        <img class="abs product-img" id="product-img-3">
+        <div class="abs price-tag-container">
+          <img class="abs price-bg" src="./assets/asset_price_tag.png">
+          <div class="abs price-text" id="price-text-3"></div>
+        </div>
+      </div>
+
+      <!-- Counter Area -->
+      <div class="abs counter-container" id="counter-zone-3">
+        <div class="counter-surface" id="counter-surface-3"></div>
+        <div class="abs total-display" id="total-display-3">0元</div>
+        <div class="abs paid-area" id="paid-area-3">
+          <!-- Dropped items go here -->
+        </div>
+      </div>
+
+      <button class="submit-btn" id="submit-btn-3" onclick="window.ACTIVITY_3.checkAnswer()"></button>
+
+      <!-- Wallet Area -->
+      <div class="wallet-container" id="wallet-3">
+        <!-- Money items generated by JS -->
+      </div>
+    </div>
+  `,
+
+      init() {
+        document.getElementById('activity-3').innerHTML = this.template;
+
+        // Render Wallet Items
+        const walletEl = document.getElementById('wallet-3');
+        this.config.moneyTypes.forEach((m, idx) => {
+          const div = document.createElement('div');
+          div.className = `money-source ${m.type}`;
+          div.setAttribute('data-val', m.val);
+          div.setAttribute('data-img', this.config.assets[m.img]);
+          div.setAttribute('data-type', m.type);
+
+          const img = document.createElement('img');
+          img.src = this.config.assets[m.img];
+          div.appendChild(img);
+
+          walletEl.appendChild(div);
+        });
+
+        // Initialize Drag & Drop - Delay to ensure layout is computed
+        setTimeout(() => {
+          this.initDragDrop();
+        }, 200);
+
+        // Load first question
+        this.loadQuestion(0);
+      },
+
+      initDragDrop() {
+        const moneyItems = document.querySelectorAll('#wallet-3 .money-source');
+        const counterZone = document.getElementById('counter-zone-3');
+        const counterSurface = document.getElementById('counter-surface-3');
+
+        // Register Drop Zone
+        window.gameEngine.makeDropZone(counterZone, { group: 'money' });
+
+        // Register Draggables
+        moneyItems.forEach(item => {
+          window.gameEngine.makeDraggable(item, {
+            revert: true,
+            targetGroup: 'money'
+          });
+        });
+
+        // Handle Events
+        window.gameEngine.on('enter', ({ target }) => {
+          if (target === counterZone) {
+            counterSurface.classList.add('highlight');
+          }
+        });
+
+        window.gameEngine.on('leave', ({ target }) => {
+          if (target === counterZone) {
+            counterSurface.classList.remove('highlight');
+          }
+        });
+
+        window.gameEngine.on('drop', ({ source, target }) => {
+          counterSurface.classList.remove('highlight');
+          if (target === counterZone) {
+            const val = parseFloat(source.getAttribute('data-val'));
+            const imgSrc = source.getAttribute('data-img');
+            const type = source.getAttribute('data-type');
+
+            // 1. Create visualization clone BEFORE hiding source
+            // We use the same PlayFlyAnimation but maybe we pass it the relevant info or element
+            // We need to capture the rect BEFORE we reset it
+            const rect = source.getBoundingClientRect();
+
+            // 2. Hide source immediately so it doesn't look like it's sticking to the counter
+            source.style.opacity = '0';
+
+            // 3. Reset source to allow it to return to wallet (Infinite Source effect)
+            // We wait a tick to override any engine-applied snap changes
+            setTimeout(() => {
+              source.style.position = '';
+              source.style.left = '';
+              source.style.top = '';
+              source.style.zIndex = '';
+              source.style.transform = '';
+              // Restore visibility (only after validation or just always?)
+              // Actually we want "Infinite Source", so we always restore it.
+              source.style.opacity = '1';
+              source.classList.remove('tge-dragging');
+            }, 50);
+
+            // 4. Play Animation & Logic
+            this.playFlyAnimation(source, target, () => {
+              this.addMoneyToCounter(val, imgSrc, type);
+            });
+
+            window.gameEngine.playSound('click');
+          }
+        });
+      },
+
+      playFlyAnimation(sourceEl, targetEl, onComplete) {
+        const rect = sourceEl.getBoundingClientRect();
+
+        // Clone the source element directly
+        const clone = sourceEl.cloneNode(true);
+        // Reset specific styles on the clone to ensure it renders "cleanly" for animation
+        clone.style.position = 'fixed';
+        clone.style.left = rect.left + 'px';
+        clone.style.top = rect.top + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.zIndex = '100';
+        clone.style.opacity = '1'; // Ensure visible even if source was hidden
+        clone.style.transition = 'all 0.5s ease-out';
+        clone.style.margin = '0';
+        clone.style.pointerEvents = 'none';
+
+        document.body.appendChild(clone);
+
+        // Random position within paid area
+        const paidArea = document.getElementById('paid-area-3').getBoundingClientRect();
+        const targetX = paidArea.left + paidArea.width / 2 - rect.width / 2;
+        const targetY = paidArea.top + paidArea.height / 2 - rect.height / 2;
+
+        requestAnimationFrame(() => {
+          clone.style.left = targetX + 'px';
+          clone.style.top = targetY + 'px';
+          clone.style.transform = 'scale(0.8)';
+          clone.style.opacity = '0.5';
+        });
+
+        setTimeout(() => {
+          clone.remove();
+          onComplete();
+        }, 500);
+      },
+
+      addMoneyToCounter(val, imgSrc, type) {
+        this.state.paidItems.push({
+          val: val,
+          id: Date.now() + Math.random(),
+          img: imgSrc,
+          type: type
+        });
+        this._recalcTotal();
+        this.renderPaidItems();
+      },
+
+      removeMoneyFromCounter(index) {
+        this.state.paidItems.splice(index, 1);
+        this._recalcTotal();
+        window.gameEngine.playSound('click');
+        this.renderPaidItems();
+      },
+
+      _recalcTotal() {
+        const sum = this.state.paidItems.reduce((acc, item) => acc + item.val, 0);
+        this.state.currentPaid = Math.round(sum * 100) / 100; // Fix floating point
+      },
+
+      renderPaidItems() {
+        const container = document.getElementById('paid-area-3');
+        container.innerHTML = '';
+
+        this.state.paidItems.forEach((item, index) => {
+          const img = document.createElement('img');
+          img.src = item.img;
+          img.className = `paid-item ${item.type}`;
+          img.title = "Click to retrieve"; // Add tooltip hint
+          img.onclick = () => this.removeMoneyFromCounter(index);
+          container.appendChild(img);
+        });
+
+        // Update Total Display
+        const totalDisplay = document.getElementById('total-display-3');
+        if (this.state.currentPaid > 0.01) {
+          totalDisplay.style.display = 'block';
+          // Format: Remove .0 if integer, keep .X if not
+          const displayVal = Math.abs(this.state.currentPaid - Math.round(this.state.currentPaid)) < 0.01
+            ? Math.round(this.state.currentPaid)
+            : this.state.currentPaid.toFixed(1);
+
+          // Convert to Chinese units logic nicely
+          let text = "";
+          const yuan = Math.floor(this.state.currentPaid + 0.001);
+          const jiao = Math.round((this.state.currentPaid - yuan) * 10);
+
+          if (jiao === 0) text = `${yuan}yuan`;
+          else if (yuan === 0) text = `${jiao}jiao`;
+          else text = `${yuan}yuan${jiao}jiao`;
+
+          totalDisplay.innerText = "Now: " + text;
+        } else {
+          totalDisplay.style.display = 'none';
+        }
+      },
+
+      loadQuestion(index) {
+        if (index >= this.config.totalQuestions) {
+          this.showResult();
+          return;
+        }
+
+        this.state.currentIndex = index;
+        this.state.currentPaid = 0;
+        this.state.paidItems = [];
+        this.renderPaidItems();
+
+        const q = this.config.questions[index];
+
+        // Update Header
+        const headerTitle = document.querySelector('#activity-3 .header-title');
+        const headerProgress = document.querySelector('#activity-3 .progress');
+        if (headerTitle) headerTitle.innerText = "Supermarket big shopping";
+        if (headerProgress) headerProgress.innerText = `${index + 1}/${this.config.totalQuestions}`;
+
+        // Update Product
+        document.getElementById('product-img-3').src = this.config.assets[q.imgKey];
+        document.getElementById('price-text-3').innerText = q.price_text;
+      },
+
+      checkAnswer() {
+        const q = this.config.questions[this.state.currentIndex];
+        const diff = Math.abs(this.state.currentPaid - q.price_val);
+
+        if (diff < 0.01) {
+          window.gameEngine.playSound('success');
+          window.gameEngine.showFeedback(document.getElementById('total-display-3'), 'pulse');
+          setTimeout(() => {
+            this.nextQuestion();
+          }, 1500);
+        } else {
+          window.gameEngine.playSound('error');
+          const feedbackEl = document.getElementById('total-display-3');
+          feedbackEl.style.display = 'block'; // Ensure visible to shake
+          window.gameEngine.showFeedback(feedbackEl, 'shake');
+
+          // Simple toast hint
+          const hint = document.createElement('div');
+          hint.innerText = this.state.currentPaid < q.price_val ? "I don't have enough money!" : "You gave too much!";
+          hint.style.cssText = `
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.7); color: white; padding: 20px; border-radius: 10px;
+        font-size: 30px; z-index: 200;
+      `;
+          document.getElementById('activity-3').appendChild(hint);
+          setTimeout(() => hint.remove(), 1500);
+        }
+      },
+
+      nextQuestion() {
+        this.loadQuestion(this.state.currentIndex + 1);
+      },
+
+      showResult() {
+        const container = document.querySelector('.activity-content');
+        container.innerHTML = `
+      <div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; flex-direction:column;">
+        <h1 style="font-size:80px; color:#4CAF50; text-shadow:3px 3px white;">Purchase completed!</h1>
+        <p style="font-size:40px; color:#5D4037;">You really are a little financial whiz!</p>
+        <button onclick="window.ActivityManager.goHome()" style="
+          margin-top:50px; padding:20px 50px; font-size:40px; 
+          background:#FF9800; color:white; border:none; border-radius:50px; cursor:pointer;
+          box-shadow: 0 10px 0 #E65100;">
+          Back to Home
+        </button>
+      </div>
+    `;
+        window.gameEngine.playSound('success');
+      },
+
+      destroy() {
+        // Cleanup if needed
+      }
+    };
+
+    // 启动
+    document.addEventListener('DOMContentLoaded', () => {
+      ActivityManager.show(0);
+    });
+  </script>
+</body>
+
+</html>

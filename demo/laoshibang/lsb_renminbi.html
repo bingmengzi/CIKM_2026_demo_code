@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Little Wallet - Learn RMB (Renminbi)</title>
+    <script src="https://lsbtta-fz-cdn.laoshibang.com/npm/tailwind/tailwind.min.js"></script>
+    <link href="https://lsbtta-fz-cdn.laoshibang.com/npm/fontawesome-free-7.1.0-web/css/all.min.css" rel="stylesheet">
+    <script src="https://lsbtta-fz-cdn.laoshibang.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-yellow-300 via-yellow-200 to-orange-200 text-slate-800 h-screen w-screen font-sans select-none flex flex-col overflow-y-auto"><span style="font-size: 14px;color: #33333359;position: absolute;bottom: 8px;left: 50%;transform: translateX(-50%);">AI-generated content</span>
+    <div id="app" class="relative z-10 w-full max-w-7xl mx-auto h-full flex flex-col p-4 md:p-6">
+        <header class="flex justify-between items-center mb-4 bg-white/90 rounded-2xl shadow-lg p-4 border-2 border-yellow-400">
+            <h1 class="text-3xl font-bold text-yellow-600 tracking-wide flex items-center gap-3">
+                <i class="fa-solid fa-piggy-bank"></i> My Little Wallet
+            </h1>
+            <div class="flex gap-6 items-center">
+                <div class="bg-sky-100 px-5 py-2 rounded-xl border-2 border-sky-400">
+                    <span class="text-lg font-semibold text-sky-700">Level:</span>
+                    <span id="level" class="text-2xl font-bold text-sky-600">1</span>
+                </div>
+                <div class="bg-orange-100 px-5 py-2 rounded-xl border-2 border-orange-400">
+                    <span class="text-lg font-semibold text-orange-700">Score:</span>
+                    <span id="score" class="text-2xl font-bold text-orange-600">0</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 min-h-0 flex gap-4 overflow-y-auto">
+            <div class="w-[45%] bg-white/95 rounded-2xl shadow-xl border-2 border-yellow-300 p-6 flex flex-col">
+                <div class="flex items-center gap-3 mb-4">
+                    <i class="fa-solid fa-wallet text-3xl text-yellow-600"></i>
+                    <h2 class="text-2xl font-bold text-yellow-700">My Wallet</h2>
+                </div>
+                <div class="flex-1 relative overflow-hidden rounded-xl bg-gradient-to-b from-yellow-50 to-orange-50 border-2 border-dashed border-yellow-400 p-4">
+                    <img src="https://lsbtta-cdn.laoshibang.com/tta/picture/019bc5ce-4bd8-7326-bef1-d32ea10918f0.png" alt="piggy bank" class="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none">
+                    <div id="wallet" class="relative z-10 flex flex-wrap gap-3 justify-center items-start p-4"></div>
+                </div>
+                <div class="mt-4 bg-sky-50 rounded-xl p-4 border-2 border-sky-300">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xl font-semibold text-sky-700">Wallet total:</span>
+                        <span id="totalAmount" class="text-3xl font-bold text-sky-600">0.00 yuan</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-[55%] bg-white/95 rounded-2xl shadow-xl border-2 border-sky-300 p-6 flex flex-col">
+                <div class="flex items-center gap-3 mb-4">
+                    <i class="fa-solid fa-cart-shopping text-3xl text-sky-600"></i>
+                    <h2 class="text-2xl font-bold text-sky-700">Shopping Mission</h2>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto">
+                    <div class="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl p-5 border-2 border-orange-300 mb-4">
+                        <img src="https://lsbtta-cdn.laoshibang.com/tta/picture/019bc5ce-4bd8-7779-99f2-138f1a710ec8.png" alt="shopping scene" class="w-full h-32 object-cover rounded-lg mb-4 border-2 border-orange-200">
+                        <div id="taskDisplay" class="space-y-3"></div>
+                    </div>
+
+                    <div id="dropZone" class="bg-sky-100 rounded-xl p-6 border-4 border-dashed border-sky-400 min-h-[180px] flex flex-col items-center justify-center relative">
+                        <i class="fa-solid fa-hand-holding-dollar text-5xl text-sky-400 mb-3"></i>
+                        <p class="text-xl font-semibold text-sky-600 mb-2">Drag money here to pay</p>
+                        <div id="droppedCoins" class="flex flex-wrap gap-2 justify-center mt-3"></div>
+                        <div class="mt-4 bg-white rounded-lg px-5 py-2 border-2 border-sky-400">
+                            <span class="text-lg font-semibold text-sky-700">Paid:</span>
+                            <span id="paidAmount" class="text-2xl font-bold text-sky-600">0.00 yuan</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex gap-3">
+                    <button id="checkBtn" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-2xl font-bold py-4 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 border-2 border-orange-600">
+                        <i class="fa-solid fa-check mr-2"></i>Confirm payment
+                    </button>
+                    <button id="resetBtn" class="bg-slate-400 hover:bg-slate-500 text-white text-xl font-bold px-6 py-4 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 border-2 border-slate-500">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="mt-4 text-center">
+            <img src="https://lsbtta-cdn.laoshibang.com/tta/picture/019bc5ce-4bd8-73b4-bb72-5b2d9a4ad66c.png" alt="piggy bank" class="w-16 h-16 mx-auto opacity-60">
+        </footer>
+    </div>
+
+    <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl p-10 max-w-lg w-full mx-4 border-4 border-yellow-400 transform scale-95">
+            <div id="modalIcon" class="text-8xl text-center mb-6"></div>
+            <h2 id="modalTitle" class="text-4xl font-bold text-center mb-4"></h2>
+            <p id="modalMessage" class="text-2xl text-center text-slate-600 mb-6"></p>
+            <button id="modalBtn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-2xl font-bold py-4 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 border-2 border-yellow-600">
+                Continue
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const coins = [
+            { id: 1, value: 100, text: '100 yuan', color: 'bg-red-100 border-red-400 text-red-700', type: 'bill' },
+            { id: 2, value: 50, text: '50 yuan', color: 'bg-green-100 border-green-400 text-green-700', type: 'bill' },
+            { id: 3, value: 20, text: '20 yuan', color: 'bg-orange-100 border-orange-400 text-orange-700', type: 'bill' },
+            { id: 4, value: 10, text: '10 yuan', color: 'bg-blue-100 border-blue-400 text-blue-700', type: 'bill' },
+            { id: 5, value: 5, text: '5 yuan', color: 'bg-purple-100 border-purple-400 text-purple-700', type: 'bill' },
+            { id: 6, value: 1, text: '1 yuan', color: 'bg-yellow-100 border-yellow-500 text-yellow-800', type: 'coin' },
+            { id: 7, value: 0.5, text: '5 jiao', color: 'bg-amber-100 border-amber-500 text-amber-800', type: 'coin' },
+            { id: 8, value: 0.1, text: '1 jiao', color: 'bg-slate-100 border-slate-400 text-slate-700', type: 'coin' }
+        ];
+
+        const tasks = [
+            { item: 'Lollipop', price: 1.5, icon: '🍭' },
+            { item: 'Pencil', price: 2.0, icon: '✏️' },
+            { item: 'Eraser', price: 1.0, icon: '🧽' },
+            { item: 'Notebook', price: 5.5, icon: '📓' },
+            { item: 'Marker set', price: 8.0, icon: '🖍️' },
+            { item: 'Pencil case', price: 12.5, icon: '📦' },
+            { item: 'Ruler', price: 3.5, icon: '📏' },
+            { item: 'Pencil sharpener', price: 4.0, icon: '✂️' },
+            { item: 'Glue', price: 2.5, icon: '🧴' },
+            { item: 'Stickers', price: 6.0, icon: '⭐' }
+        ];
+
+        let currentLevel = 1;
+        let score = 0;
+        let currentTask = null;
+        let paidAmount = 0;
+        let droppedCoinIds = [];
+        let draggedElement = null;
+
+        const audio = {
+            welcome: new Audio('https://lsbtta-cdn.laoshibang.com/tts/2026-01-16/019bc5ce-50cc-78f9-8e39-ddabfc16a420.mp3'),
+            correct: new Audio('https://lsbtta-cdn.laoshibang.com/tts/2026-01-16/019bc5ce-4f62-7a7e-bb6c-c90c990c675c.mp3'),
+            wrong: new Audio('https://lsbtta-cdn.laoshibang.com/tts/2026-01-16/019bc5ce-500c-7eca-933e-7ebc9d6a8b06.mp3'),
+            ding: new Audio('https://lsbtta-cdn.laoshibang.com/tts/2026-01-16/019bc5ce-5003-743b-ada2-06f5ffcf5c80.mp3')
+        };
+
+        function init() {
+            audio.welcome.play().catch(() => {});
+            renderWallet();
+            loadNewTask();
+            setupEventListeners();
+        }
+
+        function renderWallet() {
+            const wallet = document.getElementById('wallet');
+            if (!wallet) return;
+            wallet.innerHTML = '';
+            
+            coins.forEach(coin => {
+                const coinEl = document.createElement('div');
+                coinEl.draggable = true;
+                coinEl.dataset.coinId = coin.id;
+                coinEl.dataset.value = coin.value;
+                
+                if (coin.type === 'bill') {
+                    coinEl.className = `${coin.color} border-3 rounded-lg px-5 py-3 text-xl font-bold shadow-md cursor-move hover:scale-110 transition-transform duration-200`;
+                } else {
+                    coinEl.className = `${coin.color} border-3 rounded-full w-20 h-20 flex items-center justify-center text-lg font-bold shadow-md cursor-move hover:scale-110 transition-transform duration-200`;
+                }
+                
+                coinEl.innerHTML = coin.text;
+                coinEl.addEventListener('dragstart', handleDragStart);
+                coinEl.addEventListener('dragend', handleDragEnd);
+                wallet.appendChild(coinEl);
+            });
+            
+            updateTotalAmount();
+        }
+
+        function updateTotalAmount() {
+            const total = coins.reduce((sum, coin) => sum + coin.value, 0);
+            const totalAmountEl = document.getElementById('totalAmount');
+            if (totalAmountEl) {
+                totalAmountEl.textContent = total.toFixed(2) + ' yuan';
+            }
+        }
+
+        function loadNewTask() {
+            const maxPrice = Math.min(5 + currentLevel * 2, 15);
+            const availableTasks = tasks.filter(t => t.price <= maxPrice);
+            currentTask = availableTasks[Math.floor(Math.random() * availableTasks.length)];
+            
+            const taskDisplay = document.getElementById('taskDisplay');
+            if (taskDisplay) {
+                taskDisplay.innerHTML = `
+                    <div class="flex items-center gap-4 bg-white rounded-xl p-4 border-2 border-orange-300">
+                        <div class="text-6xl">${currentTask.icon}</div>
+                        <div class="flex-1">
+                            <h3 class="text-2xl font-bold text-orange-700 mb-2">Please buy: ${currentTask.item}</h3>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-xl text-orange-600">Price:</span>
+                                <span class="text-4xl font-bold text-orange-600">${currentTask.price.toFixed(2)}</span>
+                                <span class="text-xl text-orange-600">yuan</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resetPayment();
+        }
+
+        function resetPayment() {
+            paidAmount = 0;
+            droppedCoinIds = [];
+            const droppedCoinsEl = document.getElementById('droppedCoins');
+            if (droppedCoinsEl) {
+                droppedCoinsEl.innerHTML = '';
+            }
+            updatePaidAmount();
+        }
+
+        function updatePaidAmount() {
+            const paidAmountEl = document.getElementById('paidAmount');
+            if (paidAmountEl) {
+                paidAmountEl.textContent = paidAmount.toFixed(2) + ' yuan';
+                
+                anime({
+                    targets: paidAmountEl,
+                    scale: [1.3, 1],
+                    duration: 300,
+                    easing: 'easeOutElastic(1, .5)'
+                });
+            }
+        }
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.style.opacity = '0.5';
+        }
+
+        function handleDragEnd(e) {
+            e.target.style.opacity = '1';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            
+            if (!draggedElement) return;
+            
+            const coinId = parseInt(draggedElement.dataset.coinId);
+            const coinValue = parseFloat(draggedElement.dataset.value);
+            
+            if (droppedCoinIds.includes(coinId)) {
+                return;
+            }
+            
+            audio.ding.play().catch(() => {});
+            
+            droppedCoinIds.push(coinId);
+            paidAmount += coinValue;
+            
+            const coin = coins.find(c => c.id === coinId);
+            const droppedCoinsEl = document.getElementById('droppedCoins');
+            if (droppedCoinsEl && coin) {
+                const coinCopy = document.createElement('div');
+                if (coin.type === 'bill') {
+                    coinCopy.className = `${coin.color} border-2 rounded-lg px-4 py-2 text-lg font-bold shadow-sm`;
+                } else {
+                    coinCopy.className = `${coin.color} border-2 rounded-full w-16 h-16 flex items-center justify-center text-sm font-bold shadow-sm`;
+                }
+                coinCopy.textContent = coin.text;
+                droppedCoinsEl.appendChild(coinCopy);
+                
+                anime({
+                    targets: coinCopy,
+                    scale: [0, 1],
+                    rotate: [180, 0],
+                    duration: 500,
+                    easing: 'easeOutElastic(1, .6)'
+                });
+            }
+            
+            updatePaidAmount();
+        }
+
+        function checkPayment() {
+            if (!currentTask) return;
+            
+            const diff = paidAmount - currentTask.price;
+            
+            if (Math.abs(diff) < 0.01) {
+                showModal('success', 'Awesome!', `You paid exactly ${currentTask.price.toFixed(2)} yuan!`, 'text-green-500', '🎉');
+                audio.correct.play().catch(() => {});
+                score += 10;
+                updateScore();
+                setTimeout(() => {
+                    currentLevel++;
+                    updateLevel();
+                    loadNewTask();
+                    hideModal();
+                }, 2000);
+            } else if (diff > 0) {
+                const change = diff.toFixed(2);
+                showModal('info', 'Change needed!', `You paid ${paidAmount.toFixed(2)} yuan, so your change is ${change} yuan.`, 'text-sky-500', '💰');
+                audio.correct.play().catch(() => {});
+                score += 5;
+                updateScore();
+                setTimeout(() => {
+                    currentLevel++;
+                    updateLevel();
+                    loadNewTask();
+                    hideModal();
+                }, 3000);
+            } else {
+                const need = Math.abs(diff).toFixed(2);
+                showModal('error', 'Not enough money!', `You're short by ${need} yuan. Drag some more money here!`, 'text-red-500', '😅');
+                audio.wrong.play().catch(() => {});
+            }
+        }
+
+        function showModal(type, title, message, colorClass, icon) {
+            const modal = document.getElementById('modal');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            
+            if (modal && modalIcon && modalTitle && modalMessage) {
+                modalIcon.textContent = icon;
+                modalIcon.className = `text-8xl text-center mb-6 ${colorClass}`;
+                modalTitle.textContent = title;
+                modalTitle.className = `text-4xl font-bold text-center mb-4 ${colorClass}`;
+                modalMessage.textContent = message;
+                modal.classList.remove('hidden');
+                
+                anime({
+                    targets: modal.querySelector('div'),
+                    scale: [0.8, 1],
+                    opacity: [0, 1],
+                    duration: 500,
+                    easing: 'easeOutElastic(1, .6)'
+                });
+            }
+        }
+
+        function hideModal() {
+            const modal = document.getElementById('modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function updateScore() {
+            const scoreEl = document.getElementById('score');
+            if (scoreEl) {
+                scoreEl.textContent = score;
+                anime({
+                    targets: scoreEl,
+                    scale: [1.5, 1],
+                    color: ['#FFA07A', '#EA580C'],
+                    duration: 600,
+                    easing: 'easeOutElastic(1, .5)'
+                });
+            }
+        }
+
+        function updateLevel() {
+            const levelEl = document.getElementById('level');
+            if (levelEl) {
+                levelEl.textContent = currentLevel;
+                anime({
+                    targets: levelEl,
+                    scale: [1.5, 1],
+                    color: ['#87CEEB', '#0369A1'],
+                    duration: 600,
+                    easing: 'easeOutElastic(1, .5)'
+                });
+            }
+        }
+
+        function setupEventListeners() {
+            const checkBtn = document.getElementById('checkBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const modalBtn = document.getElementById('modalBtn');
+            const dropZone = document.getElementById('dropZone');
+            
+            if (checkBtn) {
+                checkBtn.addEventListener('click', checkPayment);
+            }
+            
+            if (resetBtn) {
+                resetBtn.addEventListener('click', resetPayment);
+            }
+            
+            if (modalBtn) {
+                modalBtn.addEventListener('click', hideModal);
+            }
+            
+            if (dropZone) {
+                dropZone.addEventListener('dragover', handleDragOver);
+                dropZone.addEventListener('drop', handleDrop);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

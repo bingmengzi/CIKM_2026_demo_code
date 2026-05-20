@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clock Learning - Understanding the Hour and Minute Hands</title>
+    <script src="https://lsbtta-fz-cdn.laoshibang.com/npm/tailwind/tailwind.min.js"></script>
+    <link href="https://lsbtta-fz-cdn.laoshibang.com/npm/fontawesome-free-7.1.0-web/css/all.min.css" rel="stylesheet">
+    <script src="https://lsbtta-fz-cdn.laoshibang.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 text-slate-800 h-screen w-screen font-sans select-none flex flex-col overflow-hidden"><span style="font-size: 14px;color: #33333359;position: absolute;bottom: 8px;left: 50%;transform: translateX(-50%);">AI-generated content</span>
+    <div id="app" class="relative z-10 w-full max-w-7xl mx-auto h-full flex flex-col p-4 md:p-8">
+        <header class="flex justify-between items-center mb-6 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-blue-100">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 tracking-wide flex items-center gap-3">
+                <i class="fa-solid fa-clock text-blue-500"></i> Learn the Clock
+            </h1>
+            <div class="flex gap-8 text-2xl font-bold">
+                <div class="flex items-center gap-2 text-blue-600">
+                    <i class="fa-solid fa-hourglass-half"></i>
+                    <span id="currentTime" class="text-3xl">12:00</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 min-h-0 bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border-2 border-blue-100 relative flex flex-col items-center justify-center p-8 overflow-hidden">
+            <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: url('https://lsbtta-cdn.laoshibang.com/tta/picture/019bc1a8-a08f-7eae-81f5-33ab83bbde7b.png'); background-size: cover; background-position: center;"></div>
+            
+            <div class="relative z-10 flex flex-col items-center gap-8 w-full max-w-4xl">
+                <div class="text-center space-y-2 mb-4">
+                    <p class="text-2xl text-slate-600">Drag the hands to explore how time works</p>
+                    <div class="flex gap-6 justify-center text-xl">
+                        <div class="flex items-center gap-2">
+                            <div class="w-12 h-1.5 bg-blue-500 rounded-full"></div>
+                            <span class="text-blue-600 font-semibold">Hour hand (short and thick)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-16 h-1 bg-blue-400 rounded-full"></div>
+                            <span class="text-blue-400 font-semibold">Minute hand (tall and slender)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative" style="width: min(80vmin, 600px); height: min(80vmin, 600px);">
+                    <canvas id="clockCanvas" class="absolute inset-0 cursor-grab active:cursor-grabbing"></canvas>
+                    
+                    <div id="ripple" class="absolute inset-0 rounded-full pointer-events-none opacity-0 border-4 border-blue-300"></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-3xl mt-6">
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 text-center shadow-md border border-blue-200">
+                        <div class="text-4xl font-bold text-blue-600 mb-2" id="hourDisplay">12</div>
+                        <div class="text-lg text-slate-600">Hours</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 text-center shadow-md border border-blue-200">
+                        <div class="text-4xl font-bold text-blue-400 mb-2" id="minuteDisplay">00</div>
+                        <div class="text-lg text-slate-600">Minutes</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-6 text-center shadow-md border border-emerald-200">
+                        <div class="text-4xl font-bold text-emerald-600 mb-2" id="rotationCount">0</div>
+                        <div class="text-lg text-slate-600">Minute-hand rotations</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="mt-4 text-center text-slate-500 text-lg">
+            <p>Try turning the minute hand one full rotation and see what happens to the hour hand ✨</p>
+        </footer>
+    </div>
+
+    <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl mx-4 text-center space-y-6 border-4 border-blue-200">
+            <div class="text-7xl mb-4">🎉</div>
+            <h2 class="text-4xl font-bold text-blue-600">Awesome!</h2>
+            <p class="text-2xl text-slate-600" id="modalMessage"></p>
+            <button onclick="closeModal()" class="mt-6 px-12 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-2xl rounded-2xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl font-bold">
+                Keep exploring
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('clockCanvas');
+        const ctx = canvas.getContext('2d');
+        const ripple = document.getElementById('ripple');
+        
+        let clockSize = Math.min(window.innerWidth * 0.8, window.innerHeight * 0.8, 600);
+        canvas.width = clockSize;
+        canvas.height = clockSize;
+        
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = canvas.width * 0.4;
+        
+        let minuteAngle = -Math.PI / 2;
+        let hourAngle = -Math.PI / 2;
+        let isDragging = false;
+        let dragTarget = null;
+        let lastMinuteAngle = -Math.PI / 2;
+        let rotationCount = 0;
+        
+        function drawClock() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#E8F4F8';
+            ctx.fill();
+            ctx.strokeStyle = '#4A90E2';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            for (let i = 0; i < 60; i++) {
+                const angle = (i * 6 - 90) * Math.PI / 180;
+                const isHour = i % 5 === 0;
+                const startRadius = radius - (isHour ? 25 : 12);
+                const endRadius = radius - 5;
+                
+                const x1 = centerX + Math.cos(angle) * startRadius;
+                const y1 = centerY + Math.sin(angle) * startRadius;
+                const x2 = centerX + Math.cos(angle) * endRadius;
+                const y2 = centerY + Math.sin(angle) * endRadius;
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = isHour ? '#4A90E2' : '#B0D4E8';
+                ctx.lineWidth = isHour ? 3 : 1.5;
+                ctx.stroke();
+            }
+            
+            for (let i = 1; i <= 12; i++) {
+                const angle = (i * 30 - 90) * Math.PI / 180;
+                const textRadius = radius - 50;
+                const x = centerX + Math.cos(angle) * textRadius;
+                const y = centerY + Math.sin(angle) * textRadius;
+                
+                ctx.font = 'bold ' + (radius * 0.15) + 'px Arial';
+                ctx.fillStyle = '#2563EB';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(i, x, y);
+            }
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#2563EB';
+            ctx.fill();
+            
+            drawHand(hourAngle, radius * 0.5, 8, '#4A90E2');
+            drawHand(minuteAngle, radius * 0.75, 5, '#60A5FA');
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
+            ctx.fillStyle = '#2563EB';
+            ctx.fill();
+        }
+        
+        function drawHand(angle, length, width, color) {
+            const endX = centerX + Math.cos(angle) * length;
+            const endY = centerY + Math.sin(angle) * length;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(endX, endY, width + 3, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+        
+        function updateTime() {
+            const minutes = Math.round(((minuteAngle + Math.PI / 2) / (Math.PI * 2)) * 60) % 60;
+            const hours = Math.round(((hourAngle + Math.PI / 2) / (Math.PI * 2)) * 12) % 12;
+            const displayHours = hours === 0 ? 12 : hours;
+            
+            const timeStr = `${displayHours}:${String(minutes).padStart(2, '0')}`;
+            document.getElementById('currentTime').textContent = timeStr;
+            document.getElementById('hourDisplay').textContent = displayHours;
+            document.getElementById('minuteDisplay').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('rotationCount').textContent = rotationCount;
+        }
+        
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            let clientX, clientY;
+            if (e.touches && e.touches[0]) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+        
+        function isNearHand(mouseX, mouseY, angle, length) {
+            const handEndX = centerX + Math.cos(angle) * length;
+            const handEndY = centerY + Math.sin(angle) * length;
+            const distance = Math.sqrt((mouseX - handEndX) ** 2 + (mouseY - handEndY) ** 2);
+            return distance < 30;
+        }
+        
+        function startDrag(e) {
+            e.preventDefault();
+            const pos = getMousePos(e);
+            
+            if (isNearHand(pos.x, pos.y, minuteAngle, radius * 0.75)) {
+                isDragging = true;
+                dragTarget = 'minute';
+                canvas.classList.add('cursor-grabbing');
+            } else if (isNearHand(pos.x, pos.y, hourAngle, radius * 0.5)) {
+                isDragging = true;
+                dragTarget = 'hour';
+                canvas.classList.add('cursor-grabbing');
+            }
+        }
+        
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const pos = getMousePos(e);
+            const dx = pos.x - centerX;
+            const dy = pos.y - centerY;
+            const newAngle = Math.atan2(dy, dx);
+            
+            if (dragTarget === 'minute') {
+                const oldAngle = minuteAngle;
+                minuteAngle = newAngle;
+                
+                const angleDiff = minuteAngle - oldAngle;
+                let normalizedDiff = angleDiff;
+                
+                if (angleDiff > Math.PI) {
+                    normalizedDiff = angleDiff - 2 * Math.PI;
+                } else if (angleDiff < -Math.PI) {
+                    normalizedDiff = angleDiff + 2 * Math.PI;
+                }
+                
+                if (oldAngle < -Math.PI / 2 + 0.2 && minuteAngle > Math.PI / 2) {
+                    rotationCount++;
+                    showRipple();
+                    playTickSound();
+                }
+                
+                hourAngle += normalizedDiff / 12;
+            } else if (dragTarget === 'hour') {
+                hourAngle = newAngle;
+                minuteAngle = hourAngle * 12;
+            }
+            
+            drawClock();
+            updateTime();
+        }
+        
+        function endDrag(e) {
+            if (isDragging) {
+                e.preventDefault();
+            }
+            isDragging = false;
+            dragTarget = null;
+            canvas.classList.remove('cursor-grabbing');
+        }
+        
+        function showRipple() {
+            ripple.style.opacity = '1';
+            ripple.style.transform = 'scale(1)';
+            
+            anime({
+                targets: ripple,
+                scale: [1, 1.3],
+                opacity: [1, 0],
+                duration: 800,
+                easing: 'easeOutQuad'
+            });
+            
+            if (rotationCount > 0 && rotationCount % 3 === 0) {
+                showModal(`The minute hand has completed ${rotationCount} full rotations! The hour hand has moved forward by ${rotationCount} hour(s)!`);
+            }
+        }
+        
+        function playTickSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+        
+        function showModal(message) {
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modal').classList.add('flex');
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('modal').classList.remove('flex');
+        }
+        
+        canvas.addEventListener('mousedown', startDrag);
+        canvas.addEventListener('mousemove', drag);
+        canvas.addEventListener('mouseup', endDrag);
+        canvas.addEventListener('mouseleave', endDrag);
+        
+        canvas.addEventListener('touchstart', startDrag);
+        canvas.addEventListener('touchmove', drag);
+        canvas.addEventListener('touchend', endDrag);
+        
+        window.addEventListener('resize', () => {
+            clockSize = Math.min(window.innerWidth * 0.8, window.innerHeight * 0.8, 600);
+            canvas.width = clockSize;
+            canvas.height = clockSize;
+            drawClock();
+        });
+        
+        drawClock();
+        updateTime();
+    </script>
+</body>
+</html>
