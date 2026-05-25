@@ -1,4 +1,4 @@
-# ManipulativeAgent: A Collaborative Multi-Agent Framework for Interactive Mathematical Content Generation
+# ManipulativeAgent: A Multi-Agent System for GeneratingInteractive Mathematical Manipulatives
 
 _A Multi-Agent Framework for Automated Virtual Interactive Manipulatives Generation_
 
@@ -28,23 +28,22 @@ We conduct comprehensive evaluation through automated assessment and a frontline
 
 We evaluate on a dataset of 40 teaching scenarios from real teacher search queries. A Visual LLM-based method automatically interacts with each manipulative and scores on four dimensions (1–5 scale).
 
-| Dimension | Score | Description |
-| :--- | :---: | :--- |
-| **Visual Aesthetics** | 5 | Exquisitely designed, suitable for projection display, with clear visual guidance |
-| | 3 | Tidy interface with clear divisions, though lacking distinction |
-| | 1 | Obvious display errors rendering content unusable |
-| | | |
-| **Interaction Richness** | 5 | Rich active operations (drag, rotate, simulate) with immediate feedback |
-| | 3 | Basic interactions (buttons, multiple choice) lacking depth |
-| | 1 | No interaction or interactions unresponsive |
-| | | |
-| **Instructional Effectiveness** | 5 | Progressive activity design with diverse types supporting different stages |
-| | 3 | Complete flow but only a single teaching activity |
-| | 1 | Confused logic or serious pedagogical errors |
-| | | |
-| **Content Accuracy** | 5 | Completely accurate with comprehensive knowledge coverage |
-| | 3 | Correct core concepts but partial omissions |
-| | 1 | Serious subject matter errors |
+| Dimension                             | Score | Description                                                                       |
+| :------------------------------------ | :---: | :-------------------------------------------------------------------------------- |
+| **Visual Aesthetics**           |   5   | Exquisitely designed, suitable for projection display, with clear visual guidance |
+|                                       |   3   | Tidy interface with clear divisions, though lacking distinction                   |
+|                                       |   1   | Obvious display errors rendering content unusable                                 |
+| **Interaction Richness**        |   5   | Rich active operations (drag, rotate, simulate) with immediate feedback           |
+|                                       |   3   | Basic interactions (buttons, multiple choice) lacking depth                       |
+|                                       |   1   | No interaction or interactions unresponsive                                       |
+| **Instructional Effectiveness** |   5   | Progressive activity design with diverse types supporting different stages        |
+|                                       |   3   | Complete flow but only a single teaching activity                                 |
+|                                       |   1   | Confused logic or serious pedagogical errors                                      |
+| **Content Accuracy**            |   5   | Completely accurate with comprehensive knowledge coverage                         |
+|                                       |   3   | Correct core concepts but partial omissions                                       |
+|                                       |   1   | Serious subject matter errors                                                     |
+
+> ManipulativeAgent outperforms commercial platforms and direct LLM generation on all dimensions. The largest gain is in **Interaction Richness** (3.88 vs 2.83), where the component library reduces interaction failures common in directly generated code.
 
 | Method            | Visual Aesthetics | Interaction Richness | Instructional Effectiveness | Content Accuracy |
 | ----------------- | ----------------: | -------------------: | --------------------------: | ---------------: |
@@ -53,8 +52,6 @@ We evaluate on a dataset of 40 teaching scenarios from real teacher search queri
 | Gemini 3.0 Pro    |              4.32 |                 2.80 |                        2.95 |             3.76 |
 | Claude 4.5 Sonnet |              4.31 |                 2.83 |                        2.93 |             4.00 |
 | **Ours**    |    **4.43** |       **3.88** |              **3.26** |   **4.12** |
-
-> ManipulativeAgent outperforms commercial platforms and direct LLM generation on all dimensions. The largest gain is in **Interaction Richness** (3.88 vs 2.83), where the component library reduces interaction failures common in directly generated code.
 
 ### Teacher Survey (N=89)
 
@@ -143,13 +140,13 @@ manipulative-agent-ui/
 
 Coming soon: Demo videos showcasing generated virtual interactive manipulatives for various mathematical topics including clocks, protractor, parallelogram and more.
 
-| Method | clock | Fraction Multiplication | parallelogram | protractor | renminbi |
-| --- | --- | --- | --- | --- | --- |
-| Feixiang Teacher | [fxls_clock](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_clock.html) | [fxls_fractionMultiplication](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_fractionMultiplication.html) | [fxls_parallelogram](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_parallelogram.html) | [fxls_protractor](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_protractor.html) | [fxls_renminbi](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_renminbi.html) |
-| Laoshibang | [lsb_clock](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_clock.html) | [lsb_fractionMultiplication](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_fractionMultiplication.html) | [lsb_parallelogram](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_parallelogram.html) | [lsb_protractor](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_protractor.html) | [lsb_renminbi](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_renminbi.html) |
-| Gemini 3.0 Pro | [gemini_clock](https://bingmengzi.github.io/demo.github.io/gemini/gemini_clock.html) | [gemini_fractionMultiplication](https://bingmengzi.github.io/demo.github.io/gemini/gemini_fractionMultiplication.html) | [gemini_parallelogram](https://bingmengzi.github.io/demo.github.io/gemini/gemini_parallelogram.html) | [gemini_protractor](https://bingmengzi.github.io/demo.github.io/gemini/gemini_protractor.html) | [gemini_renminbi](https://bingmengzi.github.io/demo.github.io/gemini/gemini_renminbi.html) |
-| Claude 4.5 Sonnet | [claude_clock](https://bingmengzi.github.io/demo.github.io/claude/claude_clock.html) | [claude_fractionMultiplication](https://bingmengzi.github.io/demo.github.io/claude/claude_fractionMultiplication.html) | [claude_parallelogram](https://bingmengzi.github.io/demo.github.io/claude/claude_parallelogram.html) | [claude_protractor](https://bingmengzi.github.io/demo.github.io/claude/claude_protractor.html) | [claude_renminbi](https://bingmengzi.github.io/demo.github.io/claude/claude_renminbi.html) |
-| **Ours** | **[clock](https://bingmengzi.github.io/demo.github.io/ourMethod/clock/index.html)** | **[Fraction Multiplication](https://bingmengzi.github.io/demo.github.io/ourMethod/Fraction%20Multiplication/index.html)** | **[parallelogram](https://bingmengzi.github.io/demo.github.io/ourMethod/parallelogram/index.html)** | **[protractor](https://bingmengzi.github.io/demo.github.io/ourMethod/protractor/index.html)** | **[Renminbi](https://bingmengzi.github.io/demo.github.io/ourMethod/Renminbi/index.html)** |
+| Method            | clock                                                                                  | Fraction Multiplication                                                                                                      | parallelogram                                                                                          | protractor                                                                                       | renminbi                                                                                     |
+| ----------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Feixiang Teacher  | [fxls_clock](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_clock.html)  | [fxls_fractionMultiplication](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_fractionMultiplication.html)      | [fxls_parallelogram](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_parallelogram.html)  | [fxls_protractor](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_protractor.html)  | [fxls_renminbi](https://bingmengzi.github.io/demo.github.io/feixianglaoshi/fxls_renminbi.html)  |
+| Laoshibang        | [lsb_clock](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_clock.html)        | [lsb_fractionMultiplication](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_fractionMultiplication.html)            | [lsb_parallelogram](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_parallelogram.html)        | [lsb_protractor](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_protractor.html)        | [lsb_renminbi](https://bingmengzi.github.io/demo.github.io/laoshibang/lsb_renminbi.html)        |
+| Gemini 3.0 Pro    | [gemini_clock](https://bingmengzi.github.io/demo.github.io/gemini/gemini_clock.html)      | [gemini_fractionMultiplication](https://bingmengzi.github.io/demo.github.io/gemini/gemini_fractionMultiplication.html)          | [gemini_parallelogram](https://bingmengzi.github.io/demo.github.io/gemini/gemini_parallelogram.html)      | [gemini_protractor](https://bingmengzi.github.io/demo.github.io/gemini/gemini_protractor.html)      | [gemini_renminbi](https://bingmengzi.github.io/demo.github.io/gemini/gemini_renminbi.html)      |
+| Claude 4.5 Sonnet | [claude_clock](https://bingmengzi.github.io/demo.github.io/claude/claude_clock.html)      | [claude_fractionMultiplication](https://bingmengzi.github.io/demo.github.io/claude/claude_fractionMultiplication.html)          | [claude_parallelogram](https://bingmengzi.github.io/demo.github.io/claude/claude_parallelogram.html)      | [claude_protractor](https://bingmengzi.github.io/demo.github.io/claude/claude_protractor.html)      | [claude_renminbi](https://bingmengzi.github.io/demo.github.io/claude/claude_renminbi.html)      |
+| **Ours**    | **[clock](https://bingmengzi.github.io/demo.github.io/ourMethod/clock/index.html)** | **[Fraction Multiplication](https://bingmengzi.github.io/demo.github.io/ourMethod/Fraction%20Multiplication/index.html)** | **[parallelogram](https://bingmengzi.github.io/demo.github.io/ourMethod/parallelogram/index.html)** | **[protractor](https://bingmengzi.github.io/demo.github.io/ourMethod/protractor/index.html)** | **[Renminbi](https://bingmengzi.github.io/demo.github.io/ourMethod/Renminbi/index.html)** |
 
 ---
 
