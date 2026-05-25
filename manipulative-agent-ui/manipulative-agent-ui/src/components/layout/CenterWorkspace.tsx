@@ -4,8 +4,8 @@ export function CenterWorkspace() {
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <div className="h-10 flex items-center px-4 border-b border-border shrink-0">
-        <span className="text-xs font-medium text-text-secondary">Agent Workspace</span>
+      <div className="h-11 flex items-center px-5 border-b border-border shrink-0 bg-white">
+        <span className="text-[14px] font-semibold text-text-secondary">Agent Workspace</span>
       </div>
 
       {/* Content */}

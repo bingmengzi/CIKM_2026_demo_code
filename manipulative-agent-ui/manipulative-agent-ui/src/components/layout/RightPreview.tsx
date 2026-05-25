@@ -6,43 +6,52 @@ import { DesignTab } from '../preview/DesignTab'
 import { AssetsTab } from '../preview/AssetsTab'
 import { PreviewTab } from '../preview/PreviewTab'
 import { VerifyTab } from '../preview/VerifyTab'
-import type { PreviewTab as PreviewTabType } from '@/types'
+import type { PreviewTab as PreviewTabType, AgentId } from '@/types'
 
-const tabs: { id: PreviewTabType; label: string; icon: React.ReactNode }[] = [
-  { id: 'design', label: 'Design', icon: <Paintbrush size={13} /> },
-  { id: 'assets', label: 'Assets', icon: <ImageIcon size={13} /> },
-  { id: 'preview', label: 'Preview', icon: <Eye size={13} /> },
-  { id: 'verify', label: 'Verify', icon: <ShieldCheck size={13} /> },
+const tabs: { id: PreviewTabType; label: string; icon: React.ReactNode; relatedAgent: AgentId }[] = [
+  { id: 'design', label: 'Design', icon: <Paintbrush size={14} />, relatedAgent: 'design' },
+  { id: 'assets', label: 'Assets', icon: <ImageIcon size={14} />, relatedAgent: 'design' },
+  { id: 'preview', label: 'Preview', icon: <Eye size={14} />, relatedAgent: 'engineer' },
+  { id: 'verify', label: 'Verify', icon: <ShieldCheck size={14} />, relatedAgent: 'test' },
 ]
 
 export function RightPreview() {
   const [activeTab, setActiveTab] = useState<PreviewTabType>('design')
   const { activeAgent, agentStatuses } = useOrchestration()
+  const [flashTab, setFlashTab] = useState<PreviewTabType | null>(null)
 
-  // Auto-switch tab based on active agent
   useEffect(() => {
+    let nextTab: PreviewTabType | null = null
     if (activeAgent === 'design' || agentStatuses.design === 'awaiting_review') {
-      setActiveTab('design')
+      nextTab = 'design'
     } else if (activeAgent === 'engineer' || agentStatuses.engineer === 'awaiting_review') {
-      setActiveTab('preview')
+      nextTab = 'preview'
     } else if (activeAgent === 'test') {
-      setActiveTab('verify')
+      nextTab = 'verify'
+    }
+
+    if (nextTab && nextTab !== activeTab) {
+      setActiveTab(nextTab)
+      setFlashTab(nextTab)
+      const timer = setTimeout(() => setFlashTab(null), 800)
+      return () => clearTimeout(timer)
     }
   }, [activeAgent, agentStatuses.design, agentStatuses.engineer])
 
   return (
-    <div className="h-full flex flex-col bg-surface border-l border-border">
+    <div className="h-full flex flex-col bg-white border-l border-border">
       {/* Tab bar */}
-      <div className="h-10 flex items-center px-2 border-b border-border shrink-0 gap-0.5">
+      <div className="h-11 flex items-center px-3 border-b border-border shrink-0 gap-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'flex items-center gap-1 px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors',
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-[14px] font-semibold transition-all duration-200',
               activeTab === tab.id
-                ? 'bg-background text-text-primary'
-                : 'text-text-muted hover:text-text-secondary hover:bg-background/50'
+                ? 'bg-accent-light text-accent shadow-sm'
+                : 'text-text-muted hover:text-text-primary hover:bg-background',
+              flashTab === tab.id && 'animate-tab-flash'
             )}
           >
             {tab.icon}

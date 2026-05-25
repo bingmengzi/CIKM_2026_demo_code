@@ -17,6 +17,7 @@ interface OrchestrationState {
   assets: Record<string, { url: string; prompt: string; category: string; activity_id: number; name: string }>
   verificationResults: any[]
   previewUrl: string | null
+  feedbacks: Record<AgentId, string[]>
   submitInput: (input: string) => void
   approveAndContinue: () => void
   editAndContinue: (feedback: string) => void
@@ -54,6 +55,12 @@ export function useOrchestrationProvider(): OrchestrationState {
   const [assets, setAssets] = useState<Record<string, any>>({})
   const [verificationResults, setVerificationResults] = useState<any[]>([])
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [feedbacks, setFeedbacks] = useState<Record<AgentId, string[]>>({
+    science: [],
+    design: [],
+    engineer: [],
+    test: [],
+  })
 
   const sessionIdRef = useRef<string | null>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
@@ -222,11 +229,12 @@ export function useOrchestrationProvider(): OrchestrationState {
   // Submit feedback
   const editAndContinue = useCallback(async (feedback: string) => {
     if (!sessionIdRef.current || !activeAgent) return
-    setStreamedTexts((prev) => ({
+    setFeedbacks((prev) => ({
       ...prev,
-      [activeAgent]: prev[activeAgent] + `\n\n[Teacher feedback: ${feedback}]\n— Acknowledged, adjusting...`,
+      [activeAgent]: [...prev[activeAgent], feedback],
     }))
-    setAgentStatuses((prev) => ({ ...prev, [activeAgent]: 'done' }))
+    // Keep the agent in "thinking" state so the UI shows the regeneration animation
+    setAgentStatuses((prev) => ({ ...prev, [activeAgent]: 'thinking' }))
     setPhase('running')
 
     await fetch(`/api/feedback/${sessionIdRef.current}`, {
@@ -279,6 +287,7 @@ export function useOrchestrationProvider(): OrchestrationState {
     setAssets({})
     setVerificationResults([])
     setPreviewUrl(null)
+    setFeedbacks({ science: [], design: [], engineer: [], test: [] })
   }, [])
 
   // Cleanup on unmount
@@ -303,6 +312,7 @@ export function useOrchestrationProvider(): OrchestrationState {
     assets,
     verificationResults,
     previewUrl,
+    feedbacks,
     submitInput,
     approveAndContinue,
     editAndContinue,

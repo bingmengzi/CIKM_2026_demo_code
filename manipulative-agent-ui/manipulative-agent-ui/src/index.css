@@ -1,25 +1,46 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0f1117;
-  --color-surface: #1a1d27;
-  --color-surface-hover: #222633;
-  --color-border: #2a2e3a;
-  --color-border-light: #363b4a;
-  --color-text-primary: #e8eaed;
-  --color-text-secondary: #9aa0ab;
-  --color-text-muted: #6b7280;
+  /* Light theme — refined, modern, cohesive */
+  --color-background: #fafbfc;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f4f6fa;
+  --color-surface-alt: #f7f9fc;
+  --color-border: #e3e8ef;
+  --color-border-light: #eef1f6;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
 
-  --color-agent-science: #a78bfa;
-  --color-agent-design: #60a5fa;
-  --color-agent-engineer: #34d399;
-  --color-agent-test: #fb923c;
+  /* Agent colors — harmonized -600 shades */
+  --color-agent-science: #7c3aed;
+  --color-agent-design: #2563eb;
+  --color-agent-engineer: #059669;
+  --color-agent-test: #ea580c;
 
-  --color-accent: #6366f1;
-  --color-accent-hover: #818cf8;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
+  /* Agent bg tints — soft -50 shades */
+  --color-agent-science-bg: #f5f3ff;
+  --color-agent-design-bg: #eff6ff;
+  --color-agent-engineer-bg: #ecfdf5;
+  --color-agent-test-bg: #fff7ed;
+
+  /* Agent border tints — -200 shades */
+  --color-agent-science-border: #ddd6fe;
+  --color-agent-design-border: #bfdbfe;
+  --color-agent-engineer-border: #a7f3d0;
+  --color-agent-test-border: #fed7aa;
+
+  /* Accent — indigo for sophistication */
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-light: #eef2ff;
+  --color-success: #0d9488;
+  --color-success-light: #f0fdfa;
+  --color-success-border: #99f6e4;
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-error: #dc2626;
+  --color-error-light: #fee2e2;
 }
 
 * {
@@ -30,8 +51,11 @@ body {
   margin: 0;
   background: var(--color-background);
   color: var(--color-text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -42,24 +66,25 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border-light);
+  background: var(--color-text-muted);
 }
 
-/* Animations */
+/* ============ Animations ============ */
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
+  50% { opacity: 0.4; transform: scale(0.75); }
 }
 
 @keyframes typing-cursor {
@@ -68,13 +93,185 @@ body {
 }
 
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 4px 0 var(--glow-color, transparent); }
+  50% { box-shadow: 0 0 16px 2px var(--glow-color, transparent); }
+}
+
+@keyframes check-pop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes tab-flash {
+  0%, 100% { background-color: transparent; }
+  30% { background-color: var(--color-accent-light); }
+}
+
+@keyframes progress-fill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes agent-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--glow-color, rgba(124, 58, 237, 0)), 0 1px 2px rgba(0,0,0,0.04); }
+  50% { box-shadow: 0 0 0 5px var(--glow-color, rgba(124, 58, 237, 0.12)), 0 2px 14px var(--glow-color-strong, rgba(124, 58, 237, 0.18)); }
+}
+
+@keyframes agent-icon-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.04); }
+}
+
+@keyframes data-flow-down {
+  0% { transform: translateY(-100%); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-4px); opacity: 1; }
+}
+
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ping-soft {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Phase-specific icon animations */
+@keyframes phase-scan {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(1px); }
+}
+@keyframes phase-scan-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  20% { opacity: 0.9; }
+  80% { opacity: 0.9; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes phase-design-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.06) rotate(-2deg); }
+}
+
+@keyframes phase-gen-shimmer {
+  0%, 100% { filter: brightness(1) saturate(1); }
+  50% { filter: brightness(1.15) saturate(1.2); }
+}
+@keyframes phase-gen-dots {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes phase-code-blink {
+  0%, 45%, 100% { opacity: 1; }
+  50%, 95% { opacity: 0.55; }
+}
+
+@keyframes phase-deploy-up {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes phase-test-snap {
+  0%, 100% { transform: scale(1); }
+  10% { transform: scale(0.94); }
+  20% { transform: scale(1.04); }
+}
+
+@keyframes phase-verify-tick {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  60% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Data packet flowing between agents (left sidebar connector) */
+@keyframes packet-flow {
+  0% { transform: translateY(-110%); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(110%); opacity: 0; }
+}
+
+/* Phase row reveal — staggered slide */
+@keyframes phase-row-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes accordion-collapse {
+  from { max-height: 320px; opacity: 1; }
+  to { max-height: 0; opacity: 0; }
+}
+
+@keyframes accordion-expand {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 320px; opacity: 1; }
+}
+
+/* Tab pulse on right panel when relevant agent active */
+@keyframes tab-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--tab-glow, rgba(91, 78, 232, 0)); }
+  50% { box-shadow: 0 0 0 4px var(--tab-glow, rgba(91, 78, 232, 0.25)); }
+}
+
+/* Live timer breathing */
+@keyframes timer-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+/* Feedback regeneration pulse — for "regenerating from feedback" indicator */
+@keyframes feedback-regen {
+  0%, 100% { opacity: 0.9; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(2px); }
+}
+
+/* Image arrival — soft scale-in */
+@keyframes image-arrive {
+  0% { opacity: 0; transform: scale(0.92) translateY(8px); filter: blur(4px); }
+  60% { filter: blur(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+}
+
+/* Soft border breathing for "now generating" panels */
+@keyframes generating-border {
+  0%, 100% { border-color: var(--gen-border, rgba(79, 70, 229, 0.25)); }
+  50% { border-color: var(--gen-border-strong, rgba(79, 70, 229, 0.55)); }
 }
 
 .animate-pulse-dot {
@@ -86,14 +283,80 @@ body {
 }
 
 .animate-fade-in-up {
-  animation: fade-in-up 0.3s ease-out forwards;
+  animation: fade-in-up 0.35s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.4s ease-out forwards;
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(91, 78, 232, 0.04) 50%, transparent 100%);
   background-size: 200% 100%;
-  animation: shimmer 2s linear infinite;
+  animation: shimmer 2.5s linear infinite;
 }
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-check-pop {
+  animation: check-pop 0.4s ease-out forwards;
+}
+
+.animate-tab-flash {
+  animation: tab-flash 0.6s ease-out;
+}
+
+.animate-breathe {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+.animate-agent-glow {
+  animation: agent-glow 2.4s ease-in-out infinite;
+}
+
+.animate-agent-icon-float {
+  animation: agent-icon-float 2.6s ease-in-out infinite;
+}
+
+.animate-data-flow {
+  animation: data-flow-down 1.8s linear infinite;
+}
+
+.animate-bounce-dot {
+  animation: bounce-dot 1.2s ease-in-out infinite;
+}
+
+.animate-shimmer-sweep {
+  animation: shimmer-sweep 2.2s linear infinite;
+}
+
+.animate-ring-spin {
+  animation: ring-spin 3s linear infinite;
+}
+
+.animate-ping-soft {
+  animation: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Phase animation utilities */
+.animate-phase-scan { animation: phase-scan 1.6s ease-in-out infinite; }
+.animate-phase-scan-line { animation: phase-scan-line 1.6s ease-in-out infinite; }
+.animate-phase-design-pulse { animation: phase-design-pulse 2.2s ease-in-out infinite; }
+.animate-phase-gen-shimmer { animation: phase-gen-shimmer 1.8s ease-in-out infinite; }
+.animate-phase-gen-dots { animation: phase-gen-dots 1.4s ease-in-out infinite; }
+.animate-phase-code-blink { animation: phase-code-blink 1.2s ease-in-out infinite; }
+.animate-phase-deploy-up { animation: phase-deploy-up 1.6s ease-in-out infinite; }
+.animate-phase-test-snap { animation: phase-test-snap 1.8s ease-in-out infinite; }
+.animate-phase-verify-tick { animation: phase-verify-tick 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.animate-packet-flow { animation: packet-flow 1.6s ease-in-out infinite; }
+.animate-phase-row-in { animation: phase-row-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-tab-pulse { animation: tab-pulse 1.8s ease-in-out infinite; }
+.animate-timer-pulse { animation: timer-pulse 1.4s ease-in-out infinite; }
+.animate-feedback-regen { animation: feedback-regen 1.4s ease-in-out infinite; }
+.animate-image-arrive { animation: image-arrive 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-generating-border { animation: generating-border 2s ease-in-out infinite; }
 
 /* Override react-resizable-panels inline min-width: 0px */
 [id^="_r_"] {

@@ -5,19 +5,19 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium',
-        status === 'idle' && 'text-text-muted',
-        status === 'thinking' && 'text-warning',
-        status === 'awaiting_review' && 'text-accent',
-        status === 'done' && 'text-success'
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-semibold transition-all duration-300',
+        status === 'idle' && 'text-text-muted bg-transparent',
+        status === 'thinking' && 'text-accent bg-accent-light',
+        status === 'awaiting_review' && 'text-warning bg-warning-light',
+        status === 'done' && 'text-success bg-success-light'
       )}
     >
       <span
         className={cn(
-          'w-1.5 h-1.5 rounded-full',
+          'w-2 h-2 rounded-full shrink-0',
           status === 'idle' && 'bg-text-muted',
-          status === 'thinking' && 'bg-warning animate-pulse-dot',
-          status === 'awaiting_review' && 'bg-accent animate-pulse-dot',
+          status === 'thinking' && 'bg-accent animate-pulse-dot',
+          status === 'awaiting_review' && 'bg-warning animate-pulse-dot',
           status === 'done' && 'bg-success'
         )}
       />

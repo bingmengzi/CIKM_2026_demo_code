@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Pencil, ChevronRight, ImageIcon } from 'lucide-react'
+import { Check, Pencil, ChevronRight, ImageIcon, Send } from 'lucide-react'
 import { useOrchestration } from '@/hooks/useAgentOrchestration'
 
 const agentLabels: Record<string, string> = {
@@ -36,66 +36,66 @@ export function ReviewPanel() {
   }
 
   return (
-    <div className="mx-4 mb-3 animate-fade-in-up">
-      <div className="border border-accent/30 rounded-lg bg-accent/5 p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center">
-            <ChevronRight size={12} className="text-accent" />
+    <div className="animate-fade-in-up">
+      <div className="border-2 border-accent/25 rounded-xl bg-accent-light/40 p-4">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-7 h-7 rounded-full bg-accent/15 flex items-center justify-center animate-breathe">
+            <ChevronRight size={14} className="text-accent" strokeWidth={2.5} />
           </div>
-          <span className="text-xs font-medium text-accent">
+          <span className="text-[15px] font-bold text-accent">
             Checkpoint — Review {agentLabels[activeAgent]} Output
           </span>
         </div>
 
-        <p className="text-xs text-text-secondary mb-3">
+        <p className="text-[14px] text-text-secondary mb-4 ml-9">
           {agentHints[activeAgent] || 'Review the agent output and approve to continue.'}
         </p>
 
         {!isEditing ? (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap ml-9">
             <button
               onClick={handleApprove}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-success/20 hover:bg-success/30 text-success text-xs font-medium transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-success hover:bg-success/90 text-white text-[13px] font-semibold transition-all shadow-sm hover:shadow-md"
             >
-              <Check size={12} />
+              <Check size={14} strokeWidth={2.5} />
               Approve & Continue
             </button>
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface hover:bg-surface-hover text-text-secondary text-xs font-medium transition-colors border border-border"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white hover:bg-surface-hover text-text-secondary text-[13px] font-semibold transition-all border border-border shadow-sm"
             >
-              <Pencil size={12} />
+              <Pencil size={14} />
               Provide Feedback
             </button>
             {activeAgent === 'design' && (
-              <span className="flex items-center gap-1 text-[10px] text-text-muted">
-                <ImageIcon size={10} />
+              <span className="flex items-center gap-1.5 text-[12px] text-text-muted">
+                <ImageIcon size={12} />
                 Edit prompts in Design/Assets tabs →
               </span>
             )}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3 ml-9">
             <textarea
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               placeholder="Enter your feedback or modification request..."
-              className="w-full p-2 bg-surface border border-border rounded-md text-xs text-text-primary placeholder-text-muted resize-none outline-none focus:border-accent min-h-[60px]"
+              className="w-full p-3 bg-white border border-border rounded-lg text-[13px] text-text-primary placeholder-text-muted resize-none outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 min-h-[70px] transition-all"
               rows={2}
               autoFocus
             />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleEdit}
                 disabled={!feedback.trim()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-xs font-medium transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-[13px] font-semibold transition-all shadow-sm"
               >
-                <SendIcon size={12} />
+                <Send size={14} />
                 Submit Feedback
               </button>
               <button
                 onClick={() => { setIsEditing(false); setFeedback('') }}
-                className="px-3 py-1.5 rounded-md text-text-muted hover:text-text-secondary text-xs transition-colors"
+                className="px-4 py-2.5 rounded-lg text-text-muted hover:text-text-secondary text-[13px] font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -104,13 +104,5 @@ export function ReviewPanel() {
         )}
       </div>
     </div>
-  )
-}
-
-function SendIcon({ size }: { size: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" />
-    </svg>
   )
 }
