@@ -28,28 +28,28 @@ We conduct comprehensive evaluation through automated assessment and a frontline
 
 We evaluate on a dataset of 40 teaching scenarios from real teacher search queries. A Visual LLM-based method automatically interacts with each manipulative and scores on four dimensions (1–5 scale).
 
-| Metric | Score | Rubric description |
-| :------------------------------------ | :---: | :--------------------------------------------------------------------------- |
-| **Visual Aesthetics (VA)**      |   5   | Exquisitely designed with style suitable for elementary mathematics instruction, appropriate for projection display; and providing clear visual guidance |
-|                                       |   4   | Neat and aesthetically pleasing interface with harmonious color schemes suitable for teaching scenarios. |
-|                                       |   3   | Tidy interface with clear functional divisions though the design lacks distinction |
-|                                       |   2   | Plain interface lacking visual appeal |
-|                                       |   1   | Obvious display errors rendering the content unusable |
-| **Interaction Richness (IR)**   |   5   | Supports rich active operations such dragging, adjusting, physical simulation with immediate feedback. |
-|                                       |   4   | Diverse interaction forms allowing users to actively control the demonstration process and adjust parameters |
-|                                       |   3   | Basic interactions such buttons and multiple choice questions though lacking depth operation |
-|                                       |   2   | Primarily passive viewing where users can only control "next step" or "start demonstration" |
-|                                       |   1   | No interaction or interactions are unresponsive |
-| **Instructional Effectiveness (IE)** |   5   | Progressive instructional activity design with diverse activity types supporting different teaching stages |
-|                                       |   4   | Clear instructional logic with progressive difficulty levels |
-|                                       |   3   | Complete instructional flow though containing only single teaching activity. |
-|                                       |   2   | Simple demonstration only, lacking hands-on practice components |
-|                                       |   1   | Confused instructional logic or serious pedagogical errors |
-| **Content Accuracy (CA)**       |   5   | Completely accurate content with comprehensive knowledge point presentation highly aligned with instructional requirements |
-|                                       |   4   | Accurate content meeting instructional needs with possible minor imperfections |
-|                                       |   3   | Correct core concepts though with partial omissions or incomplete coverage |
-|                                       |   2   | Obvious knowledge point omissions or inaccurate expressions |
-|                                       |   1   | Serious subject matter errors |
+| Metric                                     | Score | Rubric description                                                                                                                                       |
+| :----------------------------------------- | :---: | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Visual Aesthetics (VA)**           |   5   | Exquisitely designed with style suitable for elementary mathematics instruction, appropriate for projection display; and providing clear visual guidance |
+|                                            |   4   | Neat and aesthetically pleasing interface with harmonious color schemes suitable for teaching scenarios.                                                 |
+|                                            |   3   | Tidy interface with clear functional divisions though the design lacks distinction                                                                       |
+|                                            |   2   | Plain interface lacking visual appeal                                                                                                                    |
+|                                            |   1   | Obvious display errors rendering the content unusable                                                                                                    |
+| **Interaction Richness (IR)**        |   5   | Supports rich active operations such dragging, adjusting, physical simulation with immediate feedback.                                                   |
+|                                            |   4   | Diverse interaction forms allowing users to actively control the demonstration process and adjust parameters                                             |
+|                                            |   3   | Basic interactions such buttons and multiple choice questions though lacking depth operation                                                             |
+|                                            |   2   | Primarily passive viewing where users can only control "next step" or "start demonstration"                                                              |
+|                                            |   1   | No interaction or interactions are unresponsive                                                                                                          |
+| **Instructional Effectiveness (IE)** |   5   | Progressive instructional activity design with diverse activity types supporting different teaching stages                                               |
+|                                            |   4   | Clear instructional logic with progressive difficulty levels                                                                                             |
+|                                            |   3   | Complete instructional flow though containing only single teaching activity.                                                                             |
+|                                            |   2   | Simple demonstration only, lacking hands-on practice components                                                                                          |
+|                                            |   1   | Confused instructional logic or serious pedagogical errors                                                                                               |
+| **Content Accuracy (CA)**            |   5   | Completely accurate content with comprehensive knowledge point presentation highly aligned with instructional requirements                               |
+|                                            |   4   | Accurate content meeting instructional needs with possible minor imperfections                                                                           |
+|                                            |   3   | Correct core concepts though with partial omissions or incomplete coverage                                                                               |
+|                                            |   2   | Obvious knowledge point omissions or inaccurate expressions                                                                                              |
+|                                            |   1   | Serious subject matter errors                                                                                                                            |
 
 > ManipulativeAgent outperforms commercial platforms and direct LLM generation on all dimensions. The largest gain is in **Interaction Richness** (3.88 vs 2.83), where the component library reduces interaction failures common in directly generated code.
 
@@ -123,23 +123,37 @@ Open `http://localhost:5173` in your browser.
 ## Project Structure
 
 ```text
-manipulative-agent-ui/
-├── README.md                            # This file
-└── manipulative-agent-ui/               # Project root
-    ├── package.json                     # Frontend dependencies
-    ├── vite.config.ts                   # Vite configuration
-    ├── src/                             # React Frontend implementation
-    │   ├── components/                  # UI components
-    │   ├── hooks/                       # Custom React hooks
-    │   └── App.tsx                      # Main frontend application
-    ├── server/                          # FastAPI Backend implementation
-    │   ├── main.py                      # API entry point
-    │   ├── session.py                   # State management & SSE
-    │   ├── pipeline/                    # Agent pipeline implementation
-    │   ├── services/                    # External module integrations
-    │   └── prompts/                     # Agent system prompts
-    ├── data/                            # Component mapping data
-    └── public/                          # Static assets
+E:\CIKM_2026_demo_code/
+├── README.md                                  # This file
+├── manipulative-agent-ui/                     # UI wrapper folder
+│   └── manipulative-agent-ui/                 # Main UI & Backend Project root
+│       ├── package.json                       # Frontend dependencies
+│       ├── vite.config.ts                     # Vite configuration   
+│       ├── tsconfig.json                      # TypeScript config
+│       ├── src/                               # React Frontend implementation
+│       │   ├── components/                    # UI components (Agent interface, ReviewPanel, etc.)
+│       │   ├── hooks/                         # Custom React hooks
+│       │   ├── mock/                          # Typed interfaces and mock data
+│       │   ├── types/                         # TypeScript definitions
+│       │   ├── lib/                           # Utility functions
+│       │   └── App.tsx                        # Main frontend application component
+│       ├── server/                            # FastAPI Backend implementation
+│       │   ├── main.py                        # API entry point     
+│       │   ├── session.py                     # State management & SSE handlers
+│       │   ├── config.py                      # Configurations containing LLM setup
+│       │   ├── pipeline/                      # Multi-Agent pipeline implementation
+│       │   ├── services/                      # External module integrations
+│       │   ├── routes/                        # External API routers layout
+│       │   └── prompts/                       # Agent system prompts for each specialized agent
+│       ├── data/                              # Component mapping data
+│       ├── public/                            # Static assets and agent avatar icons
+│       └── Agent_assest/                      # Specific avatar assets for Agents
+├── demo/                                      # Demo outputs by various generation methods
+│   ├── claude/, gemini/, etc...               # Competitor baseline demo outputs
+│   └── ourMethod/                             # Outputs generated by our ManipulativeAgent
+├── assets/                                    # Assets containing the framework images
+├── image/                                     # Assorted images for metrics
+└── video/                                     # Video demonstrations folder
 ```
 
 ---
