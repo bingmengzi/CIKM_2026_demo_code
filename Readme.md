@@ -28,28 +28,28 @@ We conduct comprehensive evaluation through automated assessment and a frontline
 
 We evaluate on a dataset of 40 teaching scenarios from real teacher search queries. A Visual LLM-based method automatically interacts with each manipulative and scores on four dimensions (1–5 scale).
 
-| Metric                                     | Score | Rubric description                                                                                                                                       |
-| :----------------------------------------- | :---: | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Visual Aesthetics (VA)**           |   5   | Exquisitely designed with style suitable for elementary mathematics instruction, appropriate for projection display; and providing clear visual guidance |
-|                                            |   4   | Neat and aesthetically pleasing interface with harmonious color schemes suitable for teaching scenarios.                                                 |
-|                                            |   3   | Tidy interface with clear functional divisions though the design lacks distinction                                                                       |
-|                                            |   2   | Plain interface lacking visual appeal                                                                                                                    |
-|                                            |   1   | Obvious display errors rendering the content unusable                                                                                                    |
-| **Interaction Richness (IR)**        |   5   | Supports rich active operations such dragging, adjusting, physical simulation with immediate feedback.                                                   |
-|                                            |   4   | Diverse interaction forms allowing users to actively control the demonstration process and adjust parameters                                             |
-|                                            |   3   | Basic interactions such buttons and multiple choice questions though lacking depth operation                                                             |
-|                                            |   2   | Primarily passive viewing where users can only control "next step" or "start demonstration"                                                              |
-|                                            |   1   | No interaction or interactions are unresponsive                                                                                                          |
-| **Instructional Effectiveness (IE)** |   5   | Progressive instructional activity design with diverse activity types supporting different teaching stages                                               |
-|                                            |   4   | Clear instructional logic with progressive difficulty levels                                                                                             |
-|                                            |   3   | Complete instructional flow though containing only single teaching activity.                                                                             |
-|                                            |   2   | Simple demonstration only, lacking hands-on practice components                                                                                          |
-|                                            |   1   | Confused instructional logic or serious pedagogical errors                                                                                               |
-| **Content Accuracy (CA)**            |   5   | Completely accurate content with comprehensive knowledge point presentation highly aligned with instructional requirements                               |
-|                                            |   4   | Accurate content meeting instructional needs with possible minor imperfections                                                                           |
-|                                            |   3   | Correct core concepts though with partial omissions or incomplete coverage                                                                               |
-|                                            |   2   | Obvious knowledge point omissions or inaccurate expressions                                                                                              |
-|                                            |   1   | Serious subject matter errors                                                                                                                            |
+| Metric                                     | Score | Rubric description                                                                                                                                          |
+| :----------------------------------------- | :---: | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Visual Aesthetics (VA)**           |   5   | Exquisitely designed with a style suitable for elementary mathematics instruction, appropriate for projection display, and providing clear visual guidance. |
+|                                            |   4   | Neat and aesthetically pleasing interface with harmonious color schemes suitable for teaching scenarios.                                                    |
+|                                            |   3   | Tidy interface with clear functional divisions, though the design lacks distinction.                                                                        |
+|                                            |   2   | Plain interface lacking visual appeal.                                                                                                                      |
+|                                            |   1   | Obvious display errors rendering the content unusable.                                                                                                      |
+| **Interaction Richness (IR)**        |   5   | Supports rich active operations such as dragging, adjusting, and physical simulation ,with immediate feedback.                                              |
+|                                            |   4   | Diverse interaction forms allowing users to actively control the demonstration process and adjust parameters.                                               |
+|                                            |   3   | Basic interactions such as buttons and multiple choice questions, though lacking depth of operation.                                                        |
+|                                            |   2   | Primarily passive viewing where users can only control "next step" or "start demonstration".                                                                |
+|                                            |   1   | No interaction or interactions are unresponsive.                                                                                                            |
+| **Instructional Effectiveness (IE)** |   5   | Progressive instructional activity design with diverse activity types supporting different teaching stages.                                                 |
+|                                            |   4   | Clear instructional logic with progressive difficulty levels.                                                                                               |
+|                                            |   3   | Complete instructional flow though containing only a single teaching activity.                                                                              |
+|                                            |   2   | Simple demonstration only, lacking hands-on practice components.                                                                                            |
+|                                            |   1   | Confused instructional logic or serious pedagogical errors.                                                                                                 |
+| **Content Accuracy (CA)**            |   5   | Completely accurate content with comprehensive knowledge point presentation, highly aligned with instructional requirements.                                |
+|                                            |   4   | Accurate content meeting instructional needs, with possible minor imperfections.                                                                            |
+|                                            |   3   | Correct core concepts, though with partial omissions or incomplete coverage.                                                                                |
+|                                            |   2   | Obvious knowledge point omissions or inaccurate expressions.                                                                                                |
+|                                            |   1   | Serious subject matter errors.                                                                                                                              |
 
 > ManipulativeAgent outperforms commercial platforms and direct LLM generation on all dimensions. The largest gain is in **Interaction Richness** (3.88 vs 2.83), where the component library reduces interaction failures common in directly generated code.
 
@@ -138,7 +138,7 @@ E:\CIKM_2026_demo_code/
 │       │   ├── lib/                           # Utility functions
 │       │   └── App.tsx                        # Main frontend application component
 │       ├── server/                            # FastAPI Backend implementation
-│       │   ├── main.py                        # API entry point     
+│       │   ├── main.py                        # API entry point   
 │       │   ├── session.py                     # State management & SSE handlers
 │       │   ├── config.py                      # Configurations containing LLM setup
 │       │   ├── pipeline/                      # Multi-Agent pipeline implementation
