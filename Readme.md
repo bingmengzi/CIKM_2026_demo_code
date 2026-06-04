@@ -28,20 +28,9 @@ We conduct comprehensive evaluation through automated assessment and a frontline
 
 We evaluate on a dataset of 40 teaching scenarios from real teacher search queries. A Visual LLM-based method automatically interacts with each manipulative and scores on four dimensions (1–5 scale).
 
-| Dimension                             | Score | Description                                                                       |
-| :------------------------------------ | :---: | :-------------------------------------------------------------------------------- |
-| **Visual Aesthetics**           |   5   | Exquisitely designed, suitable for projection display, with clear visual guidance |
-|                                       |   3   | Tidy interface with clear divisions, though lacking distinction                   |
-|                                       |   1   | Obvious display errors rendering content unusable                                 |
-| **Interaction Richness**        |   5   | Rich active operations (drag, rotate, simulate) with immediate feedback           |
-|                                       |   3   | Basic interactions (buttons, multiple choice) lacking depth                       |
-|                                       |   1   | No interaction or interactions unresponsive                                       |
-| **Instructional Effectiveness** |   5   | Progressive activity design with diverse types supporting different stages        |
-|                                       |   3   | Complete flow but only a single teaching activity                                 |
-|                                       |   1   | Confused logic or serious pedagogical errors                                      |
-| **Content Accuracy**            |   5   | Completely accurate with comprehensive knowledge coverage                         |
-|                                       |   3   | Correct core concepts but partial omissions                                       |
-|                                       |   1   | Serious subject matter errors                                                     |
+<div align="center">
+<img src="./image/image.png" alt="Scoring rubric for interactive manipulative evaluation" width="860"/>
+</div>
 
 > ManipulativeAgent outperforms commercial platforms and direct LLM generation on all dimensions. The largest gain is in **Interaction Richness** (3.88 vs 2.83), where the component library reduces interaction failures common in directly generated code.
 
