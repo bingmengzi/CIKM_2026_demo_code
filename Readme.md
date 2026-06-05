@@ -176,6 +176,6 @@ Coming soon: Demo videos showcasing generated virtual interactive manipulatives 
 
 You can watch the full demonstration of the ManipulativeAgent framework in action. The video showcases the multi-agent collaboration process and features various examples of generating virtual mathematical interactives from natural language prompts.
 
-[![ManipulativeAgent Video Demonstration](https://img.youtube.com/vi/UiMEadcPCEQ/maxresdefault.jpg)](https://youtu.be/UiMEadcPCEQ)
+[![ManipulativeAgent Video Demonstration](https://img.youtube.com/vi/7eclhXhRy0A/maxresdefault.jpg)](https://youtu.be/7eclhXhRy0A)
 
 *(Click the image above to watch the full demonstration video on YouTube, or view the [raw video file here](https://github.com/bingmengzi/CIKM_2026_demo_code/blob/main/video/ManipulativeAgent.mp4))*
